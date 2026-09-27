@@ -61,8 +61,13 @@ class ReviewCard extends StatelessWidget {
               Text(review.stars, style: AppStrings.w800(11, 1).c(p.accent)),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(review.body, style: AppStrings.w400(12, 1.6).c(p.neutral800)),
+          if (review.body.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text(
+              review.body,
+              style: AppStrings.w400(12, 1.6).c(p.neutral800),
+            ),
+          ],
         ],
       ),
     );

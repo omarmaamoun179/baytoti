@@ -1,0 +1,294 @@
+{
+  "success": true,
+  "message": "Home data retrieved successfully.",
+  "data": {
+    "banners": [
+      {
+        "id": 1,
+        "title": "تشكيلة رمضان",
+        "subtitle": "أحدث تصاميم رمضان",
+        "image_url": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "تسوق الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 1,
+          "action": "details"
+        }
+      },
+      {
+        "id": 2,
+        "title": "أناقة مختلفة",
+        "subtitle": "عبايات مصممة بعناية",
+        "image_url": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "اكتشف الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 4,
+          "action": "details"
+        }
+      },
+      {
+        "id": 3,
+        "title": "إطلالتك تبدأ هنا",
+        "subtitle": "فساتين الزفاف والمناسبات",
+        "image_url": "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "تسوق الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 2,
+          "action": "details"
+        }
+      }
+    ],
+    "categories": [
+      {
+        "id": 1,
+        "name": "العبايات",
+        "slug": "abayas",
+        "image_url": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 2,
+        "name": "فساتين الزفاف",
+        "slug": "wedding-dresses",
+        "image_url": "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 3,
+        "name": "عبايات مطرزة",
+        "slug": "embroidered-abayas",
+        "image_url": "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 4,
+        "name": "عبايات سوداء",
+        "slug": "black-abayas",
+        "image_url": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 5,
+        "name": "عبايات ملونة",
+        "slug": "colored-abayas",
+        "image_url": "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 6,
+        "name": "عبايات المناسبات",
+        "slug": "occasion-abayas",
+        "image_url": "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 7,
+        "name": "عبايات يومية",
+        "slug": "daily-abayas",
+        "image_url": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 8,
+        "name": "فساتين سهرة",
+        "slug": "evening-dresses",
+        "image_url": "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 9,
+        "name": "فساتين خطوبة",
+        "slug": "engagement-dresses",
+        "image_url": "https://images.unsplash.com/photo-1595777457583-95e059d581b8?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 10,
+        "name": "إطلالات فاخرة",
+        "slug": "luxury-looks",
+        "image_url": "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&w=1200&q=80"
+      }
+    ],
+    "featured_products": [
+      {
+        "id": 13,
+        "slug": "aabay-dyzrt-mlky-3",
+        "name": "عباية ديزرت ملكي 3",
+        "price": "38.000",
+        "compare_price": "45.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 19,
+        "slug": "aabay-yomy-naaam-4",
+        "name": "عباية يومية ناعمة 4",
+        "price": "24.000",
+        "compare_price": "29.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 25,
+        "slug": "aabay-dyzrt-mlky-5",
+        "name": "عباية ديزرت ملكي 5",
+        "price": "38.000",
+        "compare_price": "45.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 31,
+        "slug": "aabay-yomy-naaam-6",
+        "name": "عباية يومية ناعمة 6",
+        "price": "24.000",
+        "compare_price": "29.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 7,
+        "slug": "aabay-yomy-naaam-2",
+        "name": "عباية يومية ناعمة 2",
+        "price": "24.000",
+        "compare_price": "29.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 1,
+        "slug": "aabay-dyzrt-mlky-1",
+        "name": "عباية ديزرت ملكي 1",
+        "price": "38.000",
+        "compare_price": "45.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 20,
+        "slug": "aabay-mnasbat-fakhr-4",
+        "name": "عباية مناسبات فاخرة 4",
+        "price": "55.000",
+        "compare_price": "65.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 2,
+        "slug": "aabay-hryr-fakhr-1",
+        "name": "عباية حرير فاخرة 1",
+        "price": "42.000",
+        "compare_price": "49.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 26,
+        "slug": "aabay-hryr-fakhr-5",
+        "name": "عباية حرير فاخرة 5",
+        "price": "42.000",
+        "compare_price": "49.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      },
+      {
+        "id": 32,
+        "slug": "aabay-mnasbat-fakhr-6",
+        "name": "عباية مناسبات فاخرة 6",
+        "price": "55.000",
+        "compare_price": "65.000",
+        "currency": "KWD",
+        "image_url": "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=1200&q=80",
+        "is_featured": true
+      }
+    ],
+    "promotions": [
+      {
+        "id": 1,
+        "title": "خصم حتى 20%",
+        "subtitle": "على جميع العبايات اليومية",
+        "discount_label": "20%",
+        "image_url": "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "تسوق الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 7,
+          "action": "details"
+        }
+      },
+      {
+        "id": 2,
+        "title": "خصم خاص للمناسبات",
+        "subtitle": "تصاميم مختارة بأسعار مميزة",
+        "discount_label": "15%",
+        "image_url": "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1490481651871-ab68de25d43d?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "تسوق الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 6,
+          "action": "details"
+        }
+      },
+      {
+        "id": 3,
+        "title": "اختيارات الزفاف",
+        "subtitle": "إطلالات ملكية ليومك المميز",
+        "discount_label": "10%",
+        "image_url": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1525507119028-ed4c629a60a3?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "تسوق الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 2,
+          "action": "details"
+        }
+      }
+    ],
+    "trusted_stores": [
+      {
+        "id": 1,
+        "name": "دار لمى",
+        "slug": "dar-lm-1",
+        "description": "متجر متخصص في العبايات وفساتين المناسبات بتصاميم عصرية وفاخرة.",
+        "logo_url": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80",
+        "banner_url": "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+        "is_trusted": true
+      },
+      {
+        "id": 2,
+        "name": "لمسات راقية",
+        "slug": "lmsat-raky-2",
+        "description": "متجر متخصص في العبايات وفساتين المناسبات بتصاميم عصرية وفاخرة.",
+        "logo_url": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80",
+        "banner_url": "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+        "is_trusted": true
+      },
+      {
+        "id": 3,
+        "name": "بيت الأناقة",
+        "slug": "byt-alanak-3",
+        "description": "متجر متخصص في العبايات وفساتين المناسبات بتصاميم عصرية وفاخرة.",
+        "logo_url": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80",
+        "banner_url": "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+        "is_trusted": true
+      },
+      {
+        "id": 4,
+        "name": "نخبة الخليج",
+        "slug": "nkhb-alkhlyg-4",
+        "description": "متجر متخصص في العبايات وفساتين المناسبات بتصاميم عصرية وفاخرة.",
+        "logo_url": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80",
+        "banner_url": "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+        "is_trusted": true
+      }
+    ]
+  },
+  "errors": null
+}

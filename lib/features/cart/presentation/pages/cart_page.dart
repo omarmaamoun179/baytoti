@@ -15,7 +15,6 @@ import '../../domain/entities/cart.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 import '../widgets/cart_line_tile.dart';
-import '../widgets/coupon_field.dart';
 import '../widgets/totals_table.dart';
 
 class CartPage extends StatefulWidget {
@@ -31,24 +30,6 @@ class _CartPageState extends State<CartPage> {
     super.initState();
     final cubit = context.read<CartCubit>();
     if (cubit.state.status != CartStatus.loading) cubit.load();
-  }
-
-  Future<void> _applyCoupon(String code) async {
-    final cubit = context.read<CartCubit>();
-    if (code.trim().isEmpty || cubit.state.isApplyingCoupon) return;
-
-    final failure = await cubit.applyCoupon(code);
-    if (!mounted) return;
-
-    if (failure == null) {
-      showAppToast(context, 'cart_coupon_applied'.tr());
-    } else {
-      showAppToast(
-        context,
-        failure.message ?? 'coupon_failed'.tr(),
-        isError: true,
-      );
-    }
   }
 
   @override
@@ -121,11 +102,6 @@ class _CartPageState extends State<CartPage> {
           onQuantity: (quantity) => cubit.setQuantity(item, quantity),
           onRemove: () => cubit.remove(item),
         ),
-      CouponField(
-        appliedCode: cart.coupon?.code,
-        isApplying: state.isApplyingCoupon,
-        onApply: _applyCoupon,
-      ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
         child: TotalsTable(totals: cart.totals),

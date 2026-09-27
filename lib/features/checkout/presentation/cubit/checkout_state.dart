@@ -1,59 +1,48 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../orders/domain/entities/order.dart';
 import '../../domain/entities/checkout.dart';
 
 enum CheckoutStatus { initial, loading, loaded, error }
 
 class CheckoutState extends Equatable {
   final CheckoutStatus status;
-  final CheckoutOptions? options;
+  final List<CheckoutAddress>? addresses;
   final String? addressId;
-  final String? fulfilmentId;
-  final String? paymentId;
   final bool isPlacing;
-  final PlacedOrder? placedOrder;
+  final List<OrderSummary>? placedOrders;
   final String? errorMessage;
 
   const CheckoutState({
     this.status = CheckoutStatus.initial,
-    this.options,
+    this.addresses,
     this.addressId,
-    this.fulfilmentId,
-    this.paymentId,
     this.isPlacing = false,
-    this.placedOrder,
+    this.placedOrders,
     this.errorMessage,
   });
 
-  CheckoutAddress? get address => options?.address(addressId);
+  CheckoutAddress? get address => addresses?.byId(addressId);
 
-  FulfilmentMethod? get fulfilment => options?.method(fulfilmentId);
+  bool get isBusy => isPlacing || placedOrders != null;
 
-  PaymentMethod? get payment => options?.payment(paymentId);
-
-  bool get isBusy => isPlacing || placedOrder != null;
-
-  bool get canPlace =>
-      !isBusy && address != null && fulfilment != null && payment != null;
+  bool get canPlace => !isBusy && address != null;
 
   CheckoutState copyWith({
     CheckoutStatus? status,
-    CheckoutOptions? options,
+    List<CheckoutAddress>? addresses,
     String? addressId,
-    String? fulfilmentId,
-    String? paymentId,
+    bool clearAddress = false,
     bool? isPlacing,
-    PlacedOrder? placedOrder,
+    List<OrderSummary>? placedOrders,
     String? errorMessage,
   }) {
     return CheckoutState(
       status: status ?? this.status,
-      options: options ?? this.options,
-      addressId: addressId ?? this.addressId,
-      fulfilmentId: fulfilmentId ?? this.fulfilmentId,
-      paymentId: paymentId ?? this.paymentId,
+      addresses: addresses ?? this.addresses,
+      addressId: clearAddress ? null : addressId ?? this.addressId,
       isPlacing: isPlacing ?? this.isPlacing,
-      placedOrder: placedOrder ?? this.placedOrder,
+      placedOrders: placedOrders ?? this.placedOrders,
       errorMessage: errorMessage,
     );
   }
@@ -61,12 +50,10 @@ class CheckoutState extends Equatable {
   @override
   List<Object?> get props => [
         status,
-        options,
+        addresses,
         addressId,
-        fulfilmentId,
-        paymentId,
         isPlacing,
-        placedOrder,
+        placedOrders,
         errorMessage,
       ];
 }

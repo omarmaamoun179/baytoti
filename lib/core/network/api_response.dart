@@ -17,6 +17,8 @@ class ApiResponse {
   Map<String, dynamic> get _envelope =>
       body is Map ? Map<String, dynamic>.from(body as Map) : const {};
 
+  String get message => _envelope['message'] as String? ?? '';
+
   Map<String, dynamic> get json {
     final envelope = _envelope;
     final data = envelope['data'];
@@ -36,7 +38,9 @@ class ApiResponse {
   void ensureOk() {
     if (_succeeded) return;
 
-    final message = _envelope['message'] as String? ?? '';
+    final message = statusCode >= 500
+        ? 'server_error'
+        : _envelope['message'] as String? ?? '';
 
     throw RequestException(
       message.isNotEmpty ? message : 'request_failed',

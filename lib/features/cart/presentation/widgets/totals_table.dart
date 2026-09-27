@@ -23,18 +23,20 @@ class TotalsTable extends StatelessWidget {
           totals.subtotal.display,
           row.c(p.neutral800),
         ),
-        _buildRow(
-          context,
-          'cart_discount'.tr(),
-          '− ${totals.discount.display}',
-          row.c(p.accent700),
-        ),
-        _buildRow(
-          context,
-          'cart_shipping'.tr(),
-          totals.shipping.display,
-          row.c(p.neutral800),
-        ),
+        if (totals.discount.fils != 0)
+          _buildRow(
+            context,
+            'cart_discount'.tr(),
+            '− ${totals.discount.display}',
+            row.c(p.accent700),
+          ),
+        if (totals.shipping.fils != 0)
+          _buildRow(
+            context,
+            'cart_shipping'.tr(),
+            totals.shipping.display,
+            row.c(p.neutral800),
+          ),
         _buildRow(
           context,
           'cart_total'.tr(),

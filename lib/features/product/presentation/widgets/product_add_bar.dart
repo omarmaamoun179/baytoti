@@ -30,10 +30,7 @@ class ProductAddBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final bottom = MediaQuery.paddingOf(context).bottom;
-    final lineTotal = Money.format(
-      priceFils * quantity,
-      context.locale.languageCode,
-    );
+    final lineTotal = Money.format(priceFils * quantity);
 
     return Container(
       padding: EdgeInsets.fromLTRB(16, 12, 16, 12 + bottom),

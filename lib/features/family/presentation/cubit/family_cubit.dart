@@ -5,23 +5,20 @@ import 'family_state.dart';
 class FamilyCubit extends BaseCubit<FamilyState> {
   final GetFamilyUseCase _getFamily;
   final GetFamilyProductsUseCase _getProducts;
-  final SetFollowingUseCase _setFollowing;
 
-  String _familyId = '';
+  String _slug = '';
   int _generation = 0;
 
-  FamilyCubit(this._getFamily, this._getProducts, this._setFollowing)
+  FamilyCubit(this._getFamily, this._getProducts)
       : super(const FamilyState());
 
-  Future<void> load(String familyId) async {
-    _familyId = familyId;
+  Future<void> load(String slug) async {
+    _slug = slug;
     final generation = ++_generation;
     emit(state.copyWith(status: FamilyStatus.loading, isLoadingMore: false));
 
-    final familyRequest = _getFamily(familyId);
-    final productsRequest = _getProducts(
-      FamilyProductsParams(familyId: familyId),
-    );
+    final familyRequest = _getFamily(slug);
+    final productsRequest = _getProducts(FamilyProductsParams(slug: slug));
     final familyResult = await familyRequest;
     final productsResult = await productsRequest;
     if (generation != _generation) return;
@@ -45,7 +42,7 @@ class FamilyCubit extends BaseCubit<FamilyState> {
     );
   }
 
-  Future<void> retry() => load(_familyId);
+  Future<void> retry() => load(_slug);
 
   Future<void> loadMore() async {
     if (!state.canLoadMore) return;
@@ -53,7 +50,7 @@ class FamilyCubit extends BaseCubit<FamilyState> {
     emit(state.copyWith(isLoadingMore: true));
 
     final result = await _getProducts(
-      FamilyProductsParams(familyId: _familyId, page: state.products.nextPage),
+      FamilyProductsParams(slug: _slug, page: state.products.nextPage),
     );
     if (generation != _generation) return;
 
@@ -65,33 +62,6 @@ class FamilyCubit extends BaseCubit<FamilyState> {
       (page) => emit(state.copyWith(
         isLoadingMore: false,
         products: state.products.append(page),
-      )),
-    );
-  }
-
-  Future<void> toggleFollow() async {
-    final family = state.family;
-    if (family == null || state.isSavingFollow) return;
-    final following = !family.isFollowing;
-
-    emit(state.copyWith(
-      family: family.withFollowing(following),
-      isSavingFollow: true,
-    ));
-
-    final result = await _setFollowing(
-      SetFollowingParams(familyId: family.id, following: following),
-    );
-
-    result.fold(
-      (failure) => emit(state.copyWith(
-        family: state.family?.withFollowing(family.isFollowing),
-        isSavingFollow: false,
-        errorMessage: failure.message,
-      )),
-      (confirmed) => emit(state.copyWith(
-        family: state.family?.withFollowing(confirmed),
-        isSavingFollow: false,
       )),
     );
   }

@@ -13,8 +13,5 @@ const Duration receiveTimeout = Duration(seconds: 60);
 
 const int defaultPageSize = 20;
 
-const String supportedCountryDialCode = '+965';
-const int localPhoneLength = 8;
-
 const String supportPhoneNumber = '';
 const String supportEmail = '';

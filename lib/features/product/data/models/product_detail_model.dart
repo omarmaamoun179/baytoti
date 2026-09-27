@@ -1,6 +1,6 @@
 import '../../../../core/utils/json.dart';
-import '../../../../core/utils/money.dart';
 import '../../../catalog/data/models/catalog_models.dart';
+import '../../../catalog/domain/entities/image_ref.dart';
 import '../../../catalog/domain/entities/product_badge.dart';
 import '../../domain/entities/product_detail.dart';
 
@@ -10,16 +10,19 @@ class ReviewModel extends Review {
     required super.authorName,
     required super.rating,
     required super.body,
-    super.createdDisplay,
   });
 
-  factory ReviewModel.fromJson(Map<String, dynamic> json) => ReviewModel(
-        id: json['id'] as String,
-        authorName: json['author_name'] as String? ?? '',
-        rating: jsonInt(json['rating']) ?? 0,
-        body: json['body'] as String? ?? '',
-        createdDisplay: json['created_display'] as String? ?? '',
-      );
+  factory ReviewModel.fromJson(Map<String, dynamic> json) {
+    final user = jsonMap(json['user']);
+
+    return ReviewModel(
+      id: jsonId(json['id']) ?? '',
+      authorName:
+          jsonString(user['name'] ?? json['author_name'])?.trim() ?? '',
+      rating: jsonCount(json['rating']) ?? 0,
+      body: jsonString(json['comment'] ?? json['body'])?.trim() ?? '',
+    );
+  }
 
   static List<Review> listFrom(Object? value) =>
       [for (final item in jsonList(value)) ReviewModel.fromJson(item)];
@@ -28,53 +31,73 @@ class ReviewModel extends Review {
 class ProductDetailModel extends ProductDetail {
   const ProductDetailModel({
     required super.id,
+    super.slug,
     required super.name,
     super.description,
     required super.price,
     super.compareAt,
     super.badge,
     super.rating,
-    super.ratingCount,
     super.soldCount,
-    required super.stock,
-    required super.inStock,
-    super.preparationTime,
+    super.stock,
+    super.inStock,
+    super.preparationMinutes,
     super.fulfilment,
-    required super.maxPerOrder,
+    super.maxPerOrder,
     super.images,
     required super.family,
-    super.familyAvatar,
     super.isFavourite,
-    super.reviews,
   });
 
   factory ProductDetailModel.fromJson(Map<String, dynamic> json) {
-    final family = jsonMap(json['family']);
-    final stock = jsonInt(json['stock']) ?? 0;
+    final id = jsonId(json['id']);
+    if (id == null) throw const FormatException('a product without an id');
+
+    final (price, compareAt) = PriceModel.read(json);
+    final stock = jsonCount(json['stock'] ?? json['stock_quantity']);
+    final featured = jsonBool(json['is_featured']) ?? false;
 
     return ProductDetailModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      description: json['description'] as String? ?? '',
-      price: Money.of(json, 'base_price'),
-      compareAt: Money.maybeOf(json, 'compare_price'),
-      badge: ProductBadge.fromWire(json['badge']),
-      rating: jsonDouble(json['rating']),
-      ratingCount: jsonInt(json['rating_count']) ?? 0,
-      soldCount: jsonInt(json['sold_count']) ?? 0,
+      id: id,
+      slug: jsonString(json['slug']) ?? id,
+      name: jsonString(json['name']) ?? '',
+      description: _description(json),
+      price: price,
+      compareAt: compareAt,
+      badge: ProductBadge.fromWire(json['badge']) ??
+          (featured ? ProductBadge.featured : null),
+      rating: jsonDouble(json['average_rating'] ?? json['rating']),
+      soldCount: jsonCount(json['sold_count'] ?? json['sales_count']),
       stock: stock,
-      inStock: json['in_stock'] as bool? ?? stock > 0,
-      preparationTime: json['preparation_time_display'] as String? ?? '',
+      inStock: jsonBool(json['is_available'] ?? json['in_stock']) ??
+          (stock == null || stock > 0),
+      preparationMinutes: jsonCount(json['preparation_time_minutes']),
       fulfilment: {
         for (final wire in stringList(json['fulfilment']))
           ?Fulfilment.fromWire(wire),
       },
-      maxPerOrder: jsonInt(json['max_per_order']) ?? stock,
-      images: ImageRefModel.listFrom(json['images']),
-      family: FamilyRefModel.fromJson(family),
-      familyAvatar: ImageRefModel.maybeFrom(family['avatar']),
-      isFavourite: json['is_favourite'] as bool? ?? false,
-      reviews: ReviewModel.listFrom(json['reviews_preview']),
+      maxPerOrder: jsonCount(json['max_per_order']),
+      images: _images(json),
+      family: FamilyRefModel.fromJson(jsonMap(json['store'] ?? json['family'])),
+      isFavourite: jsonBool(
+            json['is_favorite'] ??
+                json['is_favourite'] ??
+                json['is_wishlisted'] ??
+                json['in_wishlist'],
+          ) ??
+          false,
     );
+  }
+
+  static String _description(Map<String, dynamic> json) {
+    final full = jsonString(json['description'])?.trim() ?? '';
+    if (full.isNotEmpty) return full;
+    return jsonString(json['short_description'])?.trim() ?? '';
+  }
+
+  static List<ImageRef> _images(Map<String, dynamic> json) {
+    final images = ImageRefModel.listFrom(json['images']);
+    if (images.isNotEmpty) return images;
+    return [?ImageRefModel.maybeFrom(json['thumbnail'])];
   }
 }

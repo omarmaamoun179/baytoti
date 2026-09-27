@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
-import '../../../../core/utils/phone.dart';
 import '../../../../core/utils/validators/validator_messages.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_icon.dart';
@@ -45,6 +44,7 @@ class _AuthFormState extends State<AuthForm> {
   final _phone = TextEditingController();
   final _password = TextEditingController();
   final _passwordConfirmation = TextEditingController();
+  String _e164 = '';
   bool _terms = false;
   Set<String> _invalid = const {};
 
@@ -83,7 +83,7 @@ class _AuthFormState extends State<AuthForm> {
     }
 
     widget.onSubmit(
-      phone: toE164(_phone.text),
+      phone: _e164,
       password: _password.text,
       fullName: _signup ? _name.text.trim() : null,
       email: _signup ? _email.text.trim() : null,
@@ -133,6 +133,7 @@ class _AuthFormState extends State<AuthForm> {
             controller: _phone,
             requiredMessage: 'phone_required'.tr(),
             invalidMessage: 'invalid_phone'.tr(),
+            onInputChanged: (number) => _e164 = number.phoneNumber ?? '',
           ),
           const SizedBox(height: 16),
           LabeledField(

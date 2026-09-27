@@ -1,22 +1,20 @@
 import 'package:baytoti/core/domain/failure.dart';
-import 'package:baytoti/core/domain/paged.dart';
+import 'package:baytoti/core/exceptions/app_exceptions.dart';
 import 'package:baytoti/core/network/api_endpoints.dart';
-import 'package:baytoti/core/services/network_service.dart';
 import 'package:baytoti/core/theme/app_theme.dart';
+import 'package:baytoti/core/utils/money.dart';
 import 'package:baytoti/core/utils/screen_util_scope.dart';
-import 'package:baytoti/features/catalog/data/fixtures/fixture_backend.dart';
+import 'package:baytoti/features/catalog/domain/entities/order_totals.dart';
 import 'package:baytoti/features/orders/data/datasources/orders_data_source.dart';
 import 'package:baytoti/features/orders/data/models/order_models.dart';
 import 'package:baytoti/features/orders/data/repositories/orders_repository_impl.dart';
 import 'package:baytoti/features/orders/domain/entities/order.dart';
-import 'package:baytoti/features/orders/domain/repositories/orders_repository.dart';
 import 'package:baytoti/features/orders/domain/usecases/orders_usecases.dart';
 import 'package:baytoti/features/orders/presentation/cubit/order_cubit.dart';
 import 'package:baytoti/features/orders/presentation/cubit/order_state.dart';
 import 'package:baytoti/features/orders/presentation/pages/order_page.dart';
 import 'package:baytoti/features/orders/presentation/widgets/order_header_card.dart';
 import 'package:baytoti/features/orders/presentation/widgets/order_items_section.dart';
-import 'package:baytoti/features/orders/presentation/widgets/order_rating_card.dart';
 import 'package:baytoti/features/orders/presentation/widgets/order_timeline.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
@@ -26,89 +24,49 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class _InstantBackend extends FixtureBackend {
-  @override
-  Future<void> wait() async {}
-}
+import 'support/fake_network.dart';
 
-class _RecordingNetwork implements NetworkService {
-  final int statusCode;
-  final Object? body;
-  String? url;
-  Object? data;
-  Map<String, dynamic>? queryParameters;
-
-  _RecordingNetwork({this.statusCode = 200, this.body = const {}});
-
-  Response<dynamic> _answer(String url) => Response<dynamic>(
-        requestOptions: RequestOptions(path: url),
-        statusCode: statusCode,
-        data: body,
-      );
-
+class _OfflineNetwork extends FakeNetwork {
   @override
   Future<Response> get(
     String url, {
     Map<String, dynamic>? queryParameters,
     Map<String, dynamic>? headers,
     bool skipAuthRefresh = false,
-  }) async {
-    this.url = url;
-    this.queryParameters = queryParameters;
-    return _answer(url);
-  }
-
-  @override
-  Future<Response> post(
-    String url, {
-    Object? data,
-    Map<String, dynamic>? queryParameters,
-    Map<String, dynamic>? headers,
-    bool skipAuthRefresh = false,
-  }) async {
-    this.url = url;
-    this.data = data;
-    return _answer(url);
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+  }) async =>
+      throw const ConnectionException();
 }
 
-class _FakeOrdersRepository implements OrdersRepository {
-  Either<Failure, Paged<OrderSummary>> orders =
-      const Right(Paged<OrderSummary>());
-  Either<Failure, OrderDetail>? order;
-  Either<Failure, Unit> rating = const Right(unit);
-  final List<String> requested = [];
+const OrderTotals _noMoney = OrderTotals(
+  subtotal: Money(fils: 0),
+  discount: Money(fils: 0),
+  shipping: Money(fils: 0),
+  total: Money(fils: 0),
+);
 
-  @override
-  Future<Either<Failure, Paged<OrderSummary>>> getOrders(
-    OrdersQuery query,
-  ) async =>
-      orders;
+final DateTime _placed = DateTime.utc(2026, 5, 12, 10, 4).toLocal();
+final DateTime _changed = DateTime.utc(2026, 5, 12, 13, 30).toLocal();
 
-  @override
-  Future<Either<Failure, OrderDetail>> getOrder(String id) async {
-    requested.add(id);
-    return order!;
-  }
+OrderDetail _detail(OrderStatus? status) => OrderDetail(
+      id: '12',
+      reference: 'ORD-2026-1258',
+      status: status,
+      items: const [],
+      totals: _noMoney,
+      createdAt: _placed,
+      updatedAt: _changed,
+    );
 
-  @override
-  Future<Either<Failure, Unit>> rateOrder(RateOrderParams params) async =>
-      rating;
+T _valueOf<T>(Either<Failure, T> result) =>
+    result.getOrElse(() => throw StateError('refused: $result'));
+
+Failure _failureOf(Either<Failure, Object?> result) =>
+    result.fold((f) => f, (_) => throw StateError('succeeded'));
+
+OrderCubit _cubitOver(FakeNetwork network) {
+  final repository = OrdersRepositoryImpl(OrdersRemoteDataSource(network));
+  return OrderCubit(GetOrdersUseCase(repository), GetOrderUseCase(repository));
 }
-
-OrderCubit _cubitOver(OrdersRepository repository) => OrderCubit(
-      GetOrdersUseCase(repository),
-      GetOrderUseCase(repository),
-      RateOrderUseCase(repository),
-    );
-
-OrdersRepository _fixtureRepository([FixtureBackend? backend]) =>
-    OrdersRepositoryImpl(
-      OrdersMockDataSource(backend ?? _InstantBackend(), () async => 'en'),
-    );
 
 Widget _app(Widget child) => ScreenUtilScope(
       child: Builder(
@@ -120,316 +78,357 @@ Widget _app(Widget child) => ScreenUtilScope(
     );
 
 void main() {
-  group('the contract shape', () {
-    test('an order reads its timeline, items, totals and flags', () {
-      final order = OrderDetailModel.fromJson(
-        _InstantBackend().order('ord_2041', 'en'),
-      );
+  late FakeNetwork network;
+  late OrdersRemoteDataSource source;
 
-      expect(order.id, 'ord_2041');
-      expect(order.reference, 'BT-2041');
-      expect(order.status, OrderStatus.preparing);
-      expect(order.etaDisplay, isNotEmpty);
-      expect(order.timeline, hasLength(5));
-      expect(
-        order.timeline.map((s) => s.done),
-        [true, true, true, false, false],
+  setUp(() {
+    network = FakeNetwork()
+      ..replySample(
+        'GET',
+        ApiEndPoint.orders,
+        'orders/orders_page.cloak_shape.json',
+      )
+      ..replySample(
+        'GET',
+        ApiEndPoint.order('12'),
+        'orders/order_detail.cloak_shape.json',
       );
-      expect(order.timeline.first.status, OrderStatus.placed);
-      expect(order.timeline.first.atDisplay, '10:04');
-      expect(order.timeline.last.atDisplay, isNull);
-      expect(order.timeline[3].status, OrderStatus.outForDelivery);
-      expect(order.items, hasLength(2));
-      expect(order.items.first.productId, 'prd_1');
-      expect(order.items.first.lineTotalDisplay, '4.250 KWD');
+    source = OrdersRemoteDataSource(network);
+  });
+
+  group('the cloak order shape', () {
+    test('an order reads its number, store, lines, money and dates',
+        () async {
+      final order = _valueOf(await source.getOrder('12'));
+
+      expect(order.id, '12');
+      expect(order.reference, 'ORD-2026-1258');
+      expect(order.status, OrderStatus.processing);
+      expect(order.family?.name, 'مطبخ أم عبدالله');
+      expect(order.items.map((l) => l.name), ['مجبوس دجاج', 'معمول تمر']);
+      expect(order.items.first.productId, '26');
       expect(order.items.last.quantity, 2);
-      expect(order.totals.total.fils, 9050);
-      expect(order.family?.id, 'fam_1');
-      expect(order.canRate, isFalse);
+      expect(order.items.last.unitPrice.fils, 16000);
+      expect(order.items.last.lineTotal.fils, 32000);
+      expect(order.totals.subtotal.fils, 70000);
+      expect(order.totals.discount.fils, 0);
+      expect(order.totals.shipping.fils, 2000);
+      expect(order.totals.total.fils, 72000);
+      expect(order.createdAt, _placed);
+      expect(order.updatedAt, _changed);
     });
 
-    test('a delivered order can be rated', () {
-      final order = OrderDetailModel.fromJson(
-        _InstantBackend().order('ord_1998', 'en'),
-      );
+    test('a total the server leaves out is derived from its parts', () {
+      final order = OrderDetailModel.fromJson(const {
+        'id': 3,
+        'order_number': 'ORD-2026-0003',
+        'financials': {
+          'subtotal': '10.000',
+          'discount': '1.000',
+          'shipping_fee': '2.000',
+        },
+      });
 
-      expect(order.status, OrderStatus.delivered);
-      expect(order.canRate, isTrue);
-      expect(order.timeline.every((s) => s.done), isTrue);
+      expect(order.totals.total.fils, 11000);
+      expect(order.items, isEmpty);
+      expect(order.family, isNull);
     });
 
-    test('the order list is a cursor page', () {
-      final page = OrderSummaryModel.pageFrom(_InstantBackend().orders('en'));
-
-      expect(page.items.map((o) => o.id), ['ord_2041', 'ord_1998']);
-      expect(page.items.first.status, OrderStatus.preparing);
-      expect(page.items.first.totalDisplay, isNotEmpty);
-      expect(page.hasMore, isFalse);
+    test('the six statuses read as themselves, anything else as unknown', () {
+      for (final status in OrderStatus.values) {
+        expect(OrderStatus.fromWire(status.wire), status);
+      }
+      expect(OrderStatus.fromWire(' Processing '), OrderStatus.processing);
+      expect(OrderStatus.fromWire('out_for_delivery'), isNull);
+      expect(OrderStatus.fromWire(null), isNull);
     });
 
-    test('an unknown status is not guessed', () {
-      expect(OrderStatus.fromWire('lost'), isNull);
-      expect(OrderStatus.fromWire('out_for_delivery'), OrderStatus.outForDelivery);
+    test('the list pages by meta', () async {
+      final page = _valueOf(await source.getOrders(const OrdersQuery()));
+
+      expect(page.items.map((o) => o.id), ['12', '9']);
+      expect(page.items.first.reference, 'ORD-2026-1258');
+      expect(page.items.first.status, OrderStatus.processing);
+      expect(page.items.first.total.fils, 72000);
+      expect(page.items.last.family?.name, 'حلويات نورة');
+      expect(page.currentPage, 1);
+      expect(page.lastPage, 2);
+      expect(page.total, 17);
+      expect(page.hasMore, isTrue);
     });
 
-    test('a query omits what it does not filter on', () {
-      expect(const OrdersQuery().toQueryParameters(), isEmpty);
-      expect(
-        const OrdersQuery(status: OrderStatus.delivered, page: 2)
-            .toQueryParameters(),
-        {'status': 'delivered', 'page': 2},
-      );
+    test('a row without an id is dropped: there is nothing to open', () {
+      final page = OrderSummaryModel.pageFrom(const {
+        'data': [
+          {'order_number': 'ORD-X', 'status': 'pending'},
+          {'id': 5, 'order_number': 'ORD-2026-0005', 'status': 'pending'},
+        ],
+      });
+
+      expect(page.items.map((o) => o.id), ['5']);
+    });
+  });
+
+  group('the timeline', () {
+    test('a processing order has reached three of five steps', () {
+      final steps = _detail(OrderStatus.processing).timeline;
+
+      expect(steps.map((s) => s.status), OrderStatus.flow);
+      expect(steps.map((s) => s.done), [true, true, true, false, false]);
+      expect(steps.map((s) => s.at), [_placed, null, _changed, null, null]);
+    });
+
+    test('a pending order shows only when it was placed', () {
+      final steps = _detail(OrderStatus.pending).timeline;
+
+      expect(steps.map((s) => s.done), [true, false, false, false, false]);
+      expect(steps.map((s) => s.at), [_placed, null, null, null, null]);
+    });
+
+    test('a delivered order has done every step', () {
+      final steps = _detail(OrderStatus.delivered).timeline;
+
+      expect(steps.every((s) => s.done), isTrue);
+      expect(steps.last.at, _changed);
+    });
+
+    test('a cancelled order replaces the rest of the flow', () {
+      final steps = _detail(OrderStatus.cancelled).timeline;
+
+      expect(steps.map((s) => s.status), OrderStatus.cancelledFlow);
+      expect(steps.map((s) => s.done), [true, true]);
+      expect(steps.map((s) => s.at), [_placed, _changed]);
+    });
+
+    test('an unknown status reads as the first step', () {
+      expect(_detail(null).timeline, _detail(OrderStatus.pending).timeline);
     });
   });
 
   group('the remote data source', () {
-    test('lists orders with the query it was given', () async {
-      final network = _RecordingNetwork(
-        body: {
-          'items': [
-            {
-              'id': 'ord_7',
-              'reference': 'BT-7',
-              'status': 'ready',
-              'total_display': '1.000 KWD',
+    test('the first page is asked for with nothing added', () async {
+      await source.getOrders(const OrdersQuery());
+
+      expect(network.last('GET').url, ApiEndPoint.orders);
+      expect(network.last('GET').query, isEmpty);
+    });
+
+    test('a later page names its number', () async {
+      await source.getOrders(const OrdersQuery(page: 2));
+
+      expect(network.last('GET').query, {'page': 2});
+    });
+
+    test('an order is read by its id', () async {
+      await source.getOrder('12');
+
+      expect(network.last('GET').url, ApiEndPoint.order('12'));
+    });
+
+    test('an unknown order is a readable not-found', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.order('999999999'),
+        'orders/order_404.cloak_shape.json',
+        status: 404,
+      );
+
+      final failure = _failureOf(await source.getOrder('999999999'));
+
+      expect(failure.statusCode, 404);
+      expect(failure.message, 'order_not_found');
+    });
+
+    test('an answer that carries no order is not-found too', () async {
+      network.reply(
+        'GET',
+        ApiEndPoint.order('7'),
+        body: const {'success': true, 'message': 'ok', 'data': null},
+      );
+
+      final failure = _failureOf(await source.getOrder('7'));
+
+      expect(failure.message, 'order_not_found');
+    });
+
+    test('an order nested under data.order is read', () async {
+      network.reply(
+        'GET',
+        ApiEndPoint.order('7'),
+        body: const {
+          'success': true,
+          'data': {
+            'order': {
+              'id': 7,
+              'order_number': 'ORD-2026-0007',
+              'status': 'shipped',
             },
-          ],
-          'meta': {'current_page': 1, 'last_page': 2},
+          },
         },
       );
 
-      final result = await OrdersRemoteDataSource(network)
-          .getOrders(const OrdersQuery(status: OrderStatus.ready));
+      final order = _valueOf(await source.getOrder('7'));
 
-      expect(network.url, ApiEndPoint.orders);
-      expect(network.queryParameters, {'status': 'ready'});
-      final page = result.getOrElse(() => throw StateError('failed'));
-      expect(page.items.single.status, OrderStatus.ready);
-      expect(page.hasMore, isTrue);
-      expect(page.nextPage, 2);
+      expect(order.reference, 'ORD-2026-0007');
+      expect(order.status, OrderStatus.shipped);
     });
 
-    test('a missing order reads as not found', () async {
-      final network = _RecordingNetwork(
-        statusCode: 404,
-        body: {
-          'error': {'code': 'not_found', 'message': ''},
-        },
+    test('without a token the orders are a 401', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.orders,
+        'betouti/unauthenticated_401.json',
+        status: 401,
       );
 
-      final result = await OrdersRemoteDataSource(network).getOrder('ord_x');
+      final failure = _failureOf(await source.getOrders(const OrdersQuery()));
 
-      final failure = result.fold((f) => f, (_) => null);
       expect(failure, isA<ServerFailure>());
-      expect(failure?.message, 'order_not_found');
-      expect(failure?.statusCode, 404);
+      expect(failure.statusCode, 401);
     });
 
-    test('a rating posts the stars', () async {
-      final network = _RecordingNetwork(statusCode: 204, body: null);
-
-      final result = await OrdersRemoteDataSource(network).rateOrder(
-        const RateOrderParams(orderId: 'ord_1998', rating: 5),
+    test('a server error shows the generic message', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.order('12'),
+        'betouti/products_guest_500.json',
+        status: 500,
       );
 
-      expect(result, const Right<Failure, Unit>(unit));
-      expect(network.url, ApiEndPoint.orderRating('ord_1998'));
-      expect(network.data, {'rating': 5});
-    });
-  });
-
-  group('the fixture repository', () {
-    test('an unknown order is a not-found failure', () async {
-      final result = await _fixtureRepository().getOrder('ord_404');
-
-      final failure = result.fold((f) => f, (_) => null);
-      expect(failure?.message, 'order_not_found');
-      expect(failure?.code, 'not_found');
+      expect(_failureOf(await source.getOrder('12')).message, 'server_error');
     });
 
-    test('an order still in progress refuses a rating', () async {
-      final result = await _fixtureRepository().rateOrder(
-        const RateOrderParams(orderId: 'ord_2041', rating: 4),
+    test('offline is a network failure', () async {
+      final offline = OrdersRemoteDataSource(_OfflineNetwork());
+
+      expect(
+        _failureOf(await offline.getOrders(const OrdersQuery())),
+        isA<NetworkFailure>(),
       );
-
-      expect(result.fold((f) => f.code, (_) => null), 'rating_unavailable');
-    });
-
-    test('rating a delivered order closes its rating', () async {
-      final repository = _fixtureRepository();
-
-      final rated = await repository.rateOrder(
-        const RateOrderParams(orderId: 'ord_1998', rating: 5),
-      );
-      final order = await repository.getOrder('ord_1998');
-
-      expect(rated.isRight(), isTrue);
-      expect(order.fold((_) => null, (o) => o.canRate), isFalse);
     });
   });
 
   group('OrderCubit', () {
-    test('loads the order it was opened on', () async {
-      final cubit = _cubitOver(_fixtureRepository());
-
-      await cubit.load('ord_2041');
-
-      expect(cubit.state.status, OrderViewStatus.loaded);
-      expect(cubit.state.order?.reference, 'BT-2041');
-      expect(cubit.state.showsRating, isFalse);
-    });
-
-    test('resolves "latest" to the newest order', () async {
-      final cubit = _cubitOver(_fixtureRepository());
+    test('"latest" opens the first row of the first page', () async {
+      final cubit = _cubitOver(network);
+      addTearDown(cubit.close);
 
       await cubit.load(OrderCubit.latest);
 
+      expect(network.calls.map((c) => c.url), [
+        ApiEndPoint.orders,
+        ApiEndPoint.order('12'),
+      ]);
       expect(cubit.state.status, OrderViewStatus.loaded);
-      expect(cubit.state.order?.id, 'ord_2041');
+      expect(cubit.state.order?.reference, 'ORD-2026-1258');
     });
 
-    test('"latest" with no orders is empty, not an error', () async {
-      final repository = _FakeOrdersRepository();
-      final cubit = _cubitOver(repository);
+    test('no orders at all is the empty state', () async {
+      network.reply(
+        'GET',
+        ApiEndPoint.orders,
+        body: const {
+          'success': true,
+          'data': [],
+          'meta': {'current_page': 1, 'last_page': 1, 'total': 0},
+        },
+      );
+      final cubit = _cubitOver(network);
+      addTearDown(cubit.close);
 
       await cubit.load(OrderCubit.latest);
 
       expect(cubit.state.status, OrderViewStatus.empty);
-      expect(repository.requested, isEmpty);
+      expect(network.calls, hasLength(1));
     });
 
-    test('a failed first read is an error screen', () async {
-      final repository = _FakeOrdersRepository()
-        ..order = const Left(ServerFailure(message: 'order_failed'));
-      final cubit = _cubitOver(repository);
+    test('a failed first read is an error screen that a retry clears',
+        () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.order('12'),
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+      final cubit = _cubitOver(network);
+      addTearDown(cubit.close);
 
-      await cubit.load('ord_1');
-
+      await cubit.load('12');
       expect(cubit.state.status, OrderViewStatus.error);
-      expect(cubit.state.errorMessage, 'order_failed');
-    });
+      expect(cubit.state.errorMessage, 'server_error');
 
-    test('a failed list read for "latest" is an error screen', () async {
-      final repository = _FakeOrdersRepository()
-        ..orders = const Left(NetworkFailure(message: 'offline'));
-      final cubit = _cubitOver(repository);
+      network.replySample(
+        'GET',
+        ApiEndPoint.order('12'),
+        'orders/order_detail.cloak_shape.json',
+      );
+      await cubit.refresh();
 
-      await cubit.load(OrderCubit.latest);
-
-      expect(cubit.state.status, OrderViewStatus.error);
-      expect(cubit.state.errorMessage, 'offline');
-    });
-
-    test('rating a delivered order succeeds and hides the card', () async {
-      final cubit = _cubitOver(_fixtureRepository());
-      await cubit.load('ord_1998');
-      expect(cubit.state.showsRating, isTrue);
-
-      await cubit.rate(4);
-
-      expect(cubit.state.ratingStatus, RatingStatus.succeeded);
-      expect(cubit.state.order?.canRate, isFalse);
-      expect(cubit.state.showsRating, isFalse);
-    });
-
-    test('a refused rating keeps the card and reports why', () async {
-      final repository = _FakeOrdersRepository()
-        ..order = Right(OrderDetailModel.fromJson(
-          _InstantBackend().order('ord_1998', 'en'),
-        ))
-        ..rating = const Left(ServerFailure(message: 'rating_failed'));
-      final cubit = _cubitOver(repository);
-      await cubit.load('ord_1998');
-
-      await cubit.rate(3);
-
-      expect(cubit.state.ratingStatus, RatingStatus.failed);
-      expect(cubit.state.rating, 0);
-      expect(cubit.state.errorMessage, 'rating_failed');
-      expect(cubit.state.showsRating, isTrue);
-    });
-
-    test('an order that cannot be rated ignores a star', () async {
-      final repository = _FakeOrdersRepository()
-        ..order = Right(OrderDetailModel.fromJson(
-          _InstantBackend().order('ord_2041', 'en'),
-        ))
-        ..rating = const Left(ServerFailure(message: 'rating_failed'));
-      final cubit = _cubitOver(repository);
-      await cubit.load('ord_2041');
-
-      await cubit.rate(5);
-
-      expect(cubit.state.ratingStatus, RatingStatus.idle);
+      expect(cubit.state.status, OrderViewStatus.loaded);
       expect(cubit.state.errorMessage, isNull);
     });
 
     test('a failed refresh keeps the order on screen', () async {
-      final repository = _FakeOrdersRepository()
-        ..order = Right(OrderDetailModel.fromJson(
-          _InstantBackend().order('ord_2041', 'en'),
-        ));
-      final cubit = _cubitOver(repository);
-      await cubit.load('ord_2041');
+      final cubit = _cubitOver(network);
+      addTearDown(cubit.close);
+      await cubit.load('12');
 
-      repository.order = const Left(NetworkFailure(message: 'offline'));
+      network.replySample(
+        'GET',
+        ApiEndPoint.order('12'),
+        'betouti/unauthenticated_401.json',
+        status: 401,
+      );
       await cubit.refresh();
 
       expect(cubit.state.status, OrderViewStatus.loaded);
-      expect(cubit.state.order?.id, 'ord_2041');
-      expect(cubit.state.errorMessage, 'offline');
+      expect(cubit.state.order?.id, '12');
+      expect(cubit.state.errorMessage, 'Unauthenticated.');
     });
   });
 
   group('widgets', () {
-    testWidgets('the tracking sections lay out and a star rates',
+    testWidgets('the tracking sections lay out the server order',
         (tester) async {
-      final order = OrderDetailModel.fromJson(
-        _InstantBackend().order('ord_1998', 'en'),
-      );
-      final ratings = <int>[];
+      final order = _valueOf(await source.getOrder('12'));
 
       await tester.pumpWidget(_app(SingleChildScrollView(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            OrderHeaderCard(reference: order.reference, eta: order.etaDisplay),
+            OrderHeaderCard(
+              reference: order.reference,
+              subtitle: order.family?.name,
+            ),
             OrderTimeline(steps: order.timeline),
             OrderItemsSection(
               items: order.items,
               totalDisplay: order.totals.total.display,
             ),
-            OrderRatingCard(rating: 2, enabled: true, onRate: ratings.add),
           ],
         ),
       )));
 
-      expect(find.text('BT-1998'), findsOneWidget);
-      expect(find.text('Delivered'), findsOneWidget);
+      expect(find.text('ORD-2026-1258'), findsOneWidget);
+      expect(find.text('مطبخ أم عبدالله'), findsOneWidget);
+      expect(find.text('order_status_processing'), findsOneWidget);
+      expect(find.text(OrderTimeline.formatAt(_placed)), findsOneWidget);
+      expect(find.text(OrderTimeline.formatAt(_changed)), findsOneWidget);
+      expect(find.text('order_pending'), findsNWidgets(2));
       expect(find.text('× 2'), findsOneWidget);
-
-      final fourth = find
-          .descendant(
-            of: find.byType(OrderRatingCard),
-            matching: find.byType(InkWell),
-          )
-          .at(3);
-      await tester.ensureVisible(fourth);
-      await tester.tap(fourth);
-      expect(ratings, [4]);
+      expect(find.text(const Money(fils: 72000).display), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a pending step reads as pending', (tester) async {
-      await tester.pumpWidget(_app(const OrderTimeline(
-        steps: [
-          OrderTimelineStep(label: 'Received', atDisplay: '10:04', done: true),
-          OrderTimelineStep(label: 'Delivered', done: false),
-        ],
+    testWidgets('a cancelled order draws two steps', (tester) async {
+      await tester.pumpWidget(_app(OrderTimeline(
+        steps: _detail(OrderStatus.cancelled).timeline,
       )));
 
-      expect(find.text('10:04'), findsOneWidget);
-      expect(find.text('order_pending'), findsOneWidget);
+      expect(find.text('order_status_pending'), findsOneWidget);
+      expect(find.text('order_status_cancelled'), findsOneWidget);
+      expect(find.text('order_status_delivered'), findsNothing);
+      expect(find.text('order_pending'), findsNothing);
     });
   });
 
@@ -442,8 +441,7 @@ void main() {
     tearDown(() => GetIt.instance.reset());
 
     Future<void> pumpOrderPage(WidgetTester tester, String orderId) async {
-      final repository = _fixtureRepository();
-      GetIt.instance.registerFactory(() => _cubitOver(repository));
+      GetIt.instance.registerFactory(() => _cubitOver(network));
 
       await tester.runAsync(() async {
         await tester.pumpWidget(EasyLocalization(
@@ -474,27 +472,24 @@ void main() {
     testWidgets('"latest" opens the newest order', (tester) async {
       await pumpOrderPage(tester, OrderPage.latest);
 
-      expect(find.text('BT-2041'), findsOneWidget);
-      expect(find.text('Pending'), findsNWidgets(2));
-      expect(find.byType(OrderRatingCard), findsNothing);
+      expect(find.text('ORD-2026-1258'), findsOneWidget);
+      expect(find.text('مجبوس دجاج'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('a star rates a delivered order and the card goes',
+    testWidgets('an unknown order says so and offers a retry',
         (tester) async {
-      await pumpOrderPage(tester, 'ord_1998');
+      network.replySample(
+        'GET',
+        ApiEndPoint.order('999999999'),
+        'orders/order_404.cloak_shape.json',
+        status: 404,
+      );
 
-      await tester.scrollUntilVisible(find.byType(OrderRatingCard), 200);
-      await tester.tap(find
-          .descendant(
-            of: find.byType(OrderRatingCard),
-            matching: find.byType(InkWell),
-          )
-          .last);
-      await tester.pumpAndSettle();
+      await pumpOrderPage(tester, '999999999');
 
-      expect(find.text('Thank you for your rating'), findsOneWidget);
-      expect(find.byType(OrderRatingCard), findsNothing);
+      expect(find.text('This order could not be found.'), findsOneWidget);
+      expect(find.text('Try again'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

@@ -1,0 +1,10 @@
+{
+  "success": false,
+  "message": "The quantity field must not be greater than 8.",
+  "data": null,
+  "errors": {
+    "quantity": [
+      "The quantity field must not be greater than 8."
+    ]
+  }
+}

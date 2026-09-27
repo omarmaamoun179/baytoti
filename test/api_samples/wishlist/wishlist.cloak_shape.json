@@ -1,0 +1,57 @@
+{
+  "data": {
+    "id": 1,
+    "items_count": 2,
+    "items": [
+      {
+        "id": 7,
+        "product": {
+          "id": 14,
+          "name": "كبة مقلية",
+          "slug": "kb-mkly-14",
+          "short_description": "أكلة بيتية محضرة يومياً.",
+          "price": {
+            "current": "4.500",
+            "original": "5.250"
+          },
+          "thumbnail": {
+            "image": null,
+            "alt_text": null
+          },
+          "store": {
+            "id": 1,
+            "name": "مطبخ أميرة",
+            "slug": "mtbkh-amyr-1"
+          }
+        },
+        "created_at": "2026-09-12T23:23:41.000000Z"
+      },
+      {
+        "id": 9,
+        "product": {
+          "id": 16,
+          "name": "مطبق سمك",
+          "slug": "mtbk-smk-16",
+          "short_description": "أكلة بيتية محضرة يومياً.",
+          "price": {
+            "current": "8.000",
+            "original": null
+          },
+          "thumbnail": {
+            "image": null,
+            "alt_text": null
+          },
+          "store": {
+            "id": 1,
+            "name": "مطبخ أميرة",
+            "slug": "mtbkh-amyr-1"
+          }
+        },
+        "created_at": "2026-09-13T08:10:05.000000Z"
+      }
+    ]
+  },
+  "success": true,
+  "message": "Wishlist retrieved successfully.",
+  "errors": ""
+}

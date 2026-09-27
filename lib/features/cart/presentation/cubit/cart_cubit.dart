@@ -13,7 +13,6 @@ class CartCubit extends BaseCubit<CartState> {
   final AddToCartUseCase _addToCart;
   final UpdateCartItemUseCase _updateItem;
   final RemoveCartItemUseCase _removeItem;
-  final ApplyCouponUseCase _applyCoupon;
   final SessionNotifier _session;
 
   bool? _wasSignedIn;
@@ -23,7 +22,6 @@ class CartCubit extends BaseCubit<CartState> {
     this._addToCart,
     this._updateItem,
     this._removeItem,
-    this._applyCoupon,
     this._session,
   ) : super(const CartState()) {
     _session.addListener(_onSessionChanged);
@@ -113,24 +111,6 @@ class CartCubit extends BaseCubit<CartState> {
         errorMessage: failure.message,
       )),
       (cart) => emit(state.copyWith(cart: cart, busyItemIds: busy)),
-    );
-  }
-
-  Future<Failure?> applyCoupon(String code) async {
-    if (code.trim().isEmpty || state.isApplyingCoupon) return null;
-    emit(state.copyWith(isApplyingCoupon: true));
-
-    final result = await _applyCoupon(code.trim());
-
-    return result.fold(
-      (failure) {
-        emit(state.copyWith(isApplyingCoupon: false));
-        return failure;
-      },
-      (cart) {
-        emit(state.copyWith(cart: cart, isApplyingCoupon: false));
-        return null;
-      },
     );
   }
 

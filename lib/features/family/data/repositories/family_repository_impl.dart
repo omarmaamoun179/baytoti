@@ -13,17 +13,13 @@ class FamilyRepositoryImpl implements FamilyRepository {
   FamilyRepositoryImpl(this._dataSource);
 
   @override
-  Future<Either<Failure, FamilyProfile>> getFamily(String familyId) =>
-      _dataSource.getFamily(familyId);
+  Future<Either<Failure, FamilyProfile>> getFamily(String slug) =>
+      _dataSource.getFamily(slug);
 
   @override
   Future<Either<Failure, Paged<ProductSummary>>> getProducts(
-    String familyId, {
+    String slug, {
     int? page,
   }) =>
-      _dataSource.getProducts(familyId, page: page);
-
-  @override
-  Future<Either<Failure, bool>> setFollowing(String familyId, bool following) =>
-      _dataSource.setFollowing(familyId, following);
+      _dataSource.getProducts(slug, page: page);
 }

@@ -93,6 +93,7 @@ class _NotificationsView extends StatelessWidget {
               SliverList.builder(
                 itemCount: notifications.length,
                 itemBuilder: (context, index) => NotificationTile(
+                  key: ValueKey(notifications[index].id),
                   notification: notifications[index],
                   onTap: _openTarget(context, notifications[index].target),
                 ),
@@ -112,9 +113,10 @@ class _NotificationsView extends StatelessWidget {
     if (target == null) return null;
 
     return switch (target.kind) {
-      NotificationTargetKind.order => () => context.openOrder(target.id),
-      NotificationTargetKind.family => () => context.openFamily(target.id),
-      NotificationTargetKind.product => () => context.openProduct(target.id),
+      NotificationTargetKind.order => () => context.openOrder(target.handle),
+      NotificationTargetKind.family => () => context.openFamily(target.handle),
+      NotificationTargetKind.product => () =>
+          context.openProduct(target.handle),
     };
   }
 }

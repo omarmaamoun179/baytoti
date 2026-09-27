@@ -9,12 +9,10 @@ class OrderCubit extends BaseCubit<OrderState> {
 
   final GetOrdersUseCase _getOrders;
   final GetOrderUseCase _getOrder;
-  final RateOrderUseCase _rateOrder;
 
   String? _requestedId;
 
-  OrderCubit(this._getOrders, this._getOrder, this._rateOrder)
-      : super(const OrderState());
+  OrderCubit(this._getOrders, this._getOrder) : super(const OrderState());
 
   Future<void> load(String orderId) async {
     _requestedId = orderId;
@@ -47,33 +45,6 @@ class OrderCubit extends BaseCubit<OrderState> {
 
     final requested = _requestedId;
     if (requested != null) await load(requested);
-  }
-
-  Future<void> rate(int rating) async {
-    final order = state.order;
-    if (order == null || !state.showsRating || state.isRating) return;
-    if (rating < RateOrderParams.minRating ||
-        rating > RateOrderParams.maxRating) {
-      return;
-    }
-
-    emit(state.copyWith(rating: rating, ratingStatus: RatingStatus.submitting));
-
-    final result = await _rateOrder(
-      RateOrderParams(orderId: order.id, rating: rating),
-    );
-
-    await result.fold<Future<void>>(
-      (failure) async => emit(state.copyWith(
-        rating: 0,
-        ratingStatus: RatingStatus.failed,
-        errorMessage: failure.message,
-      )),
-      (_) async {
-        emit(state.copyWith(ratingStatus: RatingStatus.succeeded));
-        await _loadOrder(order.id);
-      },
-    );
   }
 
   Future<void> _loadOrder(String orderId) async {

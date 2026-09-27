@@ -6,33 +6,50 @@ import 'product_state.dart';
 
 class ProductCubit extends BaseCubit<ProductState> {
   final GetProductUseCase _getProduct;
+  final GetProductReviewsUseCase _getReviews;
   final SetFavouriteUseCase _setFavourite;
 
-  String _productId = '';
+  String _slug = '';
 
-  ProductCubit(this._getProduct, this._setFavourite)
+  ProductCubit(this._getProduct, this._getReviews, this._setFavourite)
       : super(const ProductState());
 
-  Future<void> load(String productId) async {
-    _productId = productId;
+  Future<void> load(String slug) async {
+    _slug = slug;
     emit(state.copyWith(status: ProductStatus.loading));
 
-    final result = await _getProduct(productId);
+    final result = await _getProduct(slug);
 
-    result.fold(
-      (failure) => emit(state.copyWith(
+    await result.fold(
+      (failure) async => emit(state.copyWith(
         status: ProductStatus.error,
         errorMessage: failure.message,
       )),
-      (product) => emit(state.copyWith(
-        status: ProductStatus.loaded,
-        product: product,
-        quantity: _fit(state.quantity, product),
-      )),
+      (product) async {
+        emit(state.copyWith(
+          status: ProductStatus.loaded,
+          product: product,
+          quantity: _fit(state.quantity, product),
+          isLoadingReviews: true,
+        ));
+        await _loadReviews(product.id);
+      },
     );
   }
 
-  Future<void> retry() => load(_productId);
+  Future<void> retry() => load(_slug);
+
+  Future<void> _loadReviews(String productId) async {
+    final result = await _getReviews(productId);
+
+    result.fold(
+      (_) => emit(state.copyWith(isLoadingReviews: false)),
+      (reviews) => emit(state.copyWith(
+        reviews: reviews,
+        isLoadingReviews: false,
+      )),
+    );
+  }
 
   int _fit(int quantity, ProductDetail product) =>
       product.canOrder ? quantity.clamp(1, product.maxQuantity) : 1;

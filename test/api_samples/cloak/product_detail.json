@@ -1,0 +1,156 @@
+{
+  "success": true,
+  "message": "Product retrieved successfully.",
+  "data": {
+    "id": 32,
+    "name": "عباية مناسبات فاخرة 6",
+    "slug": "aabay-mnasbat-fakhr-6",
+    "description": "قطعة مميزة بتفاصيل راقية وجودة عالية، مصممة لتمنح إطلالة أنيقة ومريحة.",
+    "short_description": "تصميم أنيق بخامة فاخرة مناسب للإطلالات اليومية والمناسبات.",
+    "price": {
+      "current": "55.000",
+      "original": "65.000"
+    },
+    "is_featured": true,
+    "category": {
+      "id": 7,
+      "name": "عبايات يومية",
+      "slug": "daily-abayas"
+    },
+    "store": {
+      "id": 6,
+      "name": "مخمل",
+      "slug": "mkhml-6"
+    },
+    "images": [],
+    "colors": [
+      {
+        "id": 63,
+        "color": {
+          "id": 14,
+          "name": "Purple",
+          "hex_code": "#800080"
+        },
+        "images": [
+          {
+            "id": 125,
+            "image": "https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=1200&q=80",
+            "alt_text": "عباية مناسبات فاخرة 6 - Purple",
+            "is_primary": true
+          },
+          {
+            "id": 126,
+            "image": "https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=1200&q=80",
+            "alt_text": "عباية مناسبات فاخرة 6 - صورة إضافية",
+            "is_primary": false
+          }
+        ],
+        "variants": [
+          {
+            "id": 187,
+            "size": {
+              "id": 1,
+              "name": "XS"
+            },
+            "sku": "CLOAK-32-14-1",
+            "price": {
+              "current": "55.000",
+              "original": "65.000"
+            },
+            "is_available": true
+          },
+          {
+            "id": 188,
+            "size": {
+              "id": 2,
+              "name": "S"
+            },
+            "sku": "CLOAK-32-14-2",
+            "price": {
+              "current": "56.500",
+              "original": "65.000"
+            },
+            "is_available": true
+          },
+          {
+            "id": 189,
+            "size": {
+              "id": 3,
+              "name": "M"
+            },
+            "sku": "CLOAK-32-14-3",
+            "price": {
+              "current": "58.000",
+              "original": "65.000"
+            },
+            "is_available": true
+          }
+        ]
+      },
+      {
+        "id": 64,
+        "color": {
+          "id": 15,
+          "name": "Yellow",
+          "hex_code": "#FFEB3B"
+        },
+        "images": [
+          {
+            "id": 127,
+            "image": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=80",
+            "alt_text": "عباية مناسبات فاخرة 6 - Yellow",
+            "is_primary": true
+          },
+          {
+            "id": 128,
+            "image": "https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?auto=format&fit=crop&w=1200&q=80",
+            "alt_text": "عباية مناسبات فاخرة 6 - صورة إضافية",
+            "is_primary": false
+          }
+        ],
+        "variants": [
+          {
+            "id": 190,
+            "size": {
+              "id": 1,
+              "name": "XS"
+            },
+            "sku": "CLOAK-32-15-1",
+            "price": {
+              "current": "55.000",
+              "original": "65.000"
+            },
+            "is_available": true
+          },
+          {
+            "id": 191,
+            "size": {
+              "id": 2,
+              "name": "S"
+            },
+            "sku": "CLOAK-32-15-2",
+            "price": {
+              "current": "56.500",
+              "original": "65.000"
+            },
+            "is_available": true
+          },
+          {
+            "id": 192,
+            "size": {
+              "id": 3,
+              "name": "M"
+            },
+            "sku": "CLOAK-32-15-3",
+            "price": {
+              "current": "58.000",
+              "original": "65.000"
+            },
+            "is_available": true
+          }
+        ]
+      }
+    ]
+  },
+  "errors": null
+}

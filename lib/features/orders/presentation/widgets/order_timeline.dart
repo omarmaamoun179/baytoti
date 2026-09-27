@@ -10,6 +10,15 @@ class OrderTimeline extends StatelessWidget {
 
   const OrderTimeline({super.key, required this.steps});
 
+  static String statusLabel(OrderStatus status) =>
+      'order_status_${status.wire}'.tr();
+
+  static String formatAt(DateTime at) {
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(at.day)}/${two(at.month)}/${at.year} '
+        '${two(at.hour)}:${two(at.minute)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -36,6 +45,12 @@ class OrderTimeline extends StatelessWidget {
   }) {
     final p = context.palette;
     final done = step.done;
+    final at = step.at;
+    final caption = at != null
+        ? formatAt(at)
+        : done
+            ? null
+            : 'order_pending'.tr();
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,15 +84,17 @@ class OrderTimeline extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  step.label,
+                  statusLabel(step.status),
                   style: AppStrings.w800(13, 1.2)
                       .c(done ? p.text : p.neutral600),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  step.atDisplay ?? 'order_pending'.tr(),
-                  style: AppStrings.w400(11, 1.5).c(p.neutral600),
-                ),
+                if (caption != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    caption,
+                    style: AppStrings.w400(11, 1.5).c(p.neutral600),
+                  ),
+                ],
               ],
             ),
           ),

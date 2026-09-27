@@ -19,32 +19,45 @@ class ProductMetaRows extends StatelessWidget {
     return null;
   }
 
+  static String? preparation(int? minutes) {
+    if (minutes == null || minutes <= 0) return null;
+    if (minutes % 60 == 0) {
+      return 'product_preparation_hours'.tr(args: ['${minutes ~/ 60}']);
+    }
+    return 'product_preparation_minutes'.tr(args: ['$minutes']);
+  }
+
+  static String? stock(ProductDetail product) {
+    if (!product.inStock) return 'product_out_of_stock'.tr();
+    final count = product.stock;
+    return count == null ? null : 'product_in_stock'.tr(args: ['$count']);
+  }
+
+  static String? rating(ProductDetail product) {
+    final rating = product.rating;
+    if (rating == null) return null;
+    final sold = product.soldCount;
+    return sold == null
+        ? '★ $rating'
+        : 'product_rating_value'.tr(args: ['$rating', '$sold']);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final rating = product.rating;
     final fulfilment = fulfilmentKey(product.fulfilment);
     final rows = [
-      if (rating != null)
-        (
-          'product_rating'.tr(),
-          'product_rating_value'.tr(args: ['$rating', '${product.soldCount}']),
-        ),
-      (
-        'product_stock'.tr(),
-        product.inStock
-            ? 'product_in_stock'.tr(args: ['${product.stock}'])
-            : 'product_out_of_stock'.tr(),
-      ),
-      if (product.preparationTime.isNotEmpty)
-        ('product_preparation'.tr(), product.preparationTime),
-      if (fulfilment != null) ('product_fulfilment'.tr(), fulfilment.tr()),
+      ('product_rating', rating(product)),
+      ('product_stock', stock(product)),
+      ('product_preparation', preparation(product.preparationMinutes)),
+      ('product_fulfilment', fulfilment?.tr()),
     ];
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         children: [
-          for (final (key, value) in rows) _buildRow(context, key, value),
+          for (final (key, value) in rows)
+            if (value != null) _buildRow(context, key.tr(), value),
         ],
       ),
     );

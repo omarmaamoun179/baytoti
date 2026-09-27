@@ -5,6 +5,19 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
 import '../../domain/entities/app_notification.dart';
 
+String notificationTimeLabel(DateTime at, {required DateTime now}) {
+  final local = at.toLocal();
+  String two(int value) => value.toString().padLeft(2, '0');
+
+  if (local.year == now.year &&
+      local.month == now.month &&
+      local.day == now.day) {
+    return '${two(local.hour)}:${two(local.minute)}';
+  }
+  if (local.year == now.year) return '${local.day}/${local.month}';
+  return '${local.day}/${local.month}/${local.year}';
+}
+
 class NotificationTile extends StatelessWidget {
   final AppNotification notification;
   final VoidCallback? onTap;
@@ -15,6 +28,9 @@ class NotificationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final unread = !notification.isRead;
+    final headline = notification.headline;
+    final detail = notification.detail;
+    final createdAt = notification.createdAt;
 
     return Material(
       color: unread ? p.accent100 : Colors.transparent,
@@ -32,23 +48,28 @@ class NotificationTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      notification.title,
-                      style: AppStrings.w800(12.5, 1.35).c(p.text),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      notification.body,
-                      style: AppStrings.w400(11.5, 1.6).c(p.neutral700),
-                    ),
+                    if (headline != null)
+                      Text(
+                        headline,
+                        style: AppStrings.w800(12.5, 1.35).c(p.text),
+                      ),
+                    if (detail != null) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        detail,
+                        style: AppStrings.w400(11.5, 1.6).c(p.neutral700),
+                      ),
+                    ],
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Text(
-                notification.createdDisplay,
-                style: AppStrings.w400(10, 1).c(p.neutral600),
-              ),
+              if (createdAt != null) ...[
+                const SizedBox(width: 12),
+                Text(
+                  notificationTimeLabel(createdAt, now: DateTime.now()),
+                  style: AppStrings.w400(10, 1).c(p.neutral600),
+                ),
+              ],
             ],
           ),
         ),

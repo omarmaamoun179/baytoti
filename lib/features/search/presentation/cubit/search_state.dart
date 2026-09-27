@@ -1,14 +1,17 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/domain/paged.dart';
+import '../../../catalog/domain/entities/category.dart';
+import '../../../catalog/domain/entities/product_summary.dart';
 import '../../domain/entities/search_query.dart';
-import '../../domain/entities/search_results.dart';
 
 enum SearchStatus { initial, loading, loaded, error }
 
 class SearchState extends Equatable {
   final SearchStatus status;
   final SearchQuery query;
-  final SearchResults? results;
+  final Paged<ProductSummary>? results;
+  final List<Category> categories;
   final bool isLoadingMore;
   final String? errorMessage;
 
@@ -16,19 +19,25 @@ class SearchState extends Equatable {
     this.status = SearchStatus.initial,
     this.query = const SearchQuery(),
     this.results,
+    this.categories = const [],
     this.isLoadingMore = false,
     this.errorMessage,
   });
 
   bool get isRefreshing => status == SearchStatus.loading && results != null;
 
-  SearchFacets get facets => results?.facets ?? const SearchFacets();
+  String? get categoryName {
+    final slug = query.categorySlug;
+    if (slug == null) return null;
+    return categories.where((c) => c.slug == slug).firstOrNull?.name;
+  }
 
   SearchState copyWith({
     SearchStatus? status,
     SearchQuery? query,
-    SearchResults? results,
+    Paged<ProductSummary>? results,
     bool clearResults = false,
+    List<Category>? categories,
     bool? isLoadingMore,
     String? errorMessage,
   }) {
@@ -36,6 +45,7 @@ class SearchState extends Equatable {
       status: status ?? this.status,
       query: query ?? this.query,
       results: clearResults ? null : results ?? this.results,
+      categories: categories ?? this.categories,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
       errorMessage: errorMessage,
     );
@@ -43,5 +53,5 @@ class SearchState extends Equatable {
 
   @override
   List<Object?> get props =>
-      [status, query, results, isLoadingMore, errorMessage];
+      [status, query, results, categories, isLoadingMore, errorMessage];
 }

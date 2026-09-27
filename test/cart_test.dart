@@ -1,57 +1,63 @@
 import 'package:baytoti/core/app/session_notifier.dart';
 import 'package:baytoti/core/domain/failure.dart';
+import 'package:baytoti/core/exceptions/app_exceptions.dart';
+import 'package:baytoti/core/network/api_endpoints.dart';
 import 'package:baytoti/core/theme/app_theme.dart';
 import 'package:baytoti/core/utils/money.dart';
 import 'package:baytoti/core/utils/screen_util_scope.dart';
 import 'package:baytoti/core/widgets/quantity_stepper.dart';
 import 'package:baytoti/features/cart/data/datasources/cart_data_source.dart';
-import 'package:baytoti/features/cart/data/models/cart_model.dart';
 import 'package:baytoti/features/cart/data/repositories/cart_repository_impl.dart';
 import 'package:baytoti/features/cart/domain/entities/cart.dart';
-import 'package:baytoti/features/cart/domain/repositories/cart_repository.dart';
 import 'package:baytoti/features/cart/domain/usecases/cart_usecases.dart';
 import 'package:baytoti/features/cart/presentation/cubit/cart_cubit.dart';
-import 'package:baytoti/features/cart/presentation/cubit/cart_state.dart';
 import 'package:baytoti/features/cart/presentation/pages/cart_page.dart';
 import 'package:baytoti/features/cart/presentation/widgets/cart_line_tile.dart';
 import 'package:baytoti/features/cart/presentation/widgets/totals_table.dart';
-import 'package:baytoti/features/catalog/data/fixtures/fixture_backend.dart';
-import 'package:baytoti/features/catalog/domain/entities/family_ref.dart';
 import 'package:baytoti/features/catalog/domain/entities/order_totals.dart';
+import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-class _InstantBackend extends FixtureBackend {
+import 'support/fake_network.dart';
+
+class _OfflineNetwork extends FakeNetwork {
   @override
-  Future<void> wait() async {}
+  Future<Response> get(
+    String url, {
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    bool skipAuthRefresh = false,
+  }) async =>
+      throw const ConnectionException();
 }
 
-CartRepository _fixtureRepository([FixtureBackend? backend]) =>
-    CartRepositoryImpl(
-      CartMockDataSource(backend ?? _InstantBackend(), () async => 'en'),
-    );
+Cart _cartOf(Either<Failure, Cart> result) =>
+    result.getOrElse(() => throw StateError('refused: $result'));
 
-CartCubit _cubitOver(CartRepository repository, SessionNotifier session) =>
-    CartCubit(
-      GetCartUseCase(repository),
-      AddToCartUseCase(repository),
-      UpdateCartItemUseCase(repository),
-      RemoveCartItemUseCase(repository),
-      ApplyCouponUseCase(repository),
-      session,
-    );
+Failure _failureOf(Either<Failure, Object?> result) =>
+    result.fold((f) => f, (_) => throw StateError('succeeded'));
 
-Money _kwd(int fils) => Money(fils: fils, display: Money.format(fils, 'en'));
+CartCubit _cubitOver(FakeNetwork network, SessionNotifier session) {
+  final repository = CartRepositoryImpl(CartRemoteDataSource(network));
+  return CartCubit(
+    GetCartUseCase(repository),
+    AddToCartUseCase(repository),
+    UpdateCartItemUseCase(repository),
+    RemoveCartItemUseCase(repository),
+    session,
+  );
+}
 
 CartItem _item({int quantity = 1, int maxQuantity = 5}) => CartItem(
-      id: 'ci_x',
-      productId: 'prd_x',
-      name: 'Date maamoul',
-      family: const FamilyRef(id: 'fam_1', name: 'Umm Abdullah'),
-      unitPrice: _kwd(1000),
+      id: '2',
+      productId: '11',
+      name: 'Chicken machboos',
+      unitPrice: const Money(fils: 1000),
       quantity: quantity,
-      lineTotal: _kwd(1000 * quantity),
+      lineTotal: Money(fils: 1000 * quantity),
       maxQuantity: maxQuantity,
     );
 
@@ -65,124 +71,217 @@ Widget _app(Widget child) => ScreenUtilScope(
     );
 
 void main() {
-  group('the contract shape', () {
-    test('the fixture cart reads its lines, coupon and totals', () {
-      final cart = CartModel.fromJson(_InstantBackend().cart('en'));
+  late FakeNetwork network;
+  late CartRemoteDataSource source;
 
-      expect(cart.id, 'crt_55');
-      expect(cart.items.map((i) => i.id), ['ci_prd_1', 'ci_prd_3']);
-      expect(cart.items.first.maxQuantity, 8);
+  setUp(() {
+    network = FakeNetwork()
+      ..replySample('GET', ApiEndPoint.cart, 'cart/cart.cloak_shape.json');
+    source = CartRemoteDataSource(network);
+  });
+
+  group('the cloak cart shape', () {
+    test('a line reads its ids, product, prices and photo', () async {
+      final cart = _cartOf(await source.getCart());
+
+      expect(cart.items.map((i) => i.id), ['2', '3']);
+      expect(cart.items.map((i) => i.productId), ['11', '14']);
+      expect(cart.items.first.name, 'مجبوس دجاج');
+      expect(cart.items.first.unitPrice.fils, 4250);
+      expect(cart.items.first.lineTotal.fils, 4250);
+      expect(cart.items.first.image, isNull);
+      expect(cart.items.first.family.name, isEmpty);
+      expect(cart.items.first.maxQuantity, CartItem.defaultMaxQuantity);
       expect(cart.items.last.quantity, 2);
       expect(cart.items.last.lineTotal.fils, 3800);
-      expect(cart.coupon?.code, 'BAYT10');
+      expect(
+        cart.items.last.image?.url,
+        'https://images.example.com/maamoul.jpg',
+      );
+    });
+
+    test('the totals come from the summary, and nothing invents a fee',
+        () async {
+      final cart = _cartOf(await source.getCart());
+
       expect(cart.totals.subtotal.fils, 8050);
-      expect(cart.totals.discount.fils, 500);
-      expect(cart.totals.shipping.fils, 1500);
-      expect(cart.totals.total.fils, 9050);
-      expect(cart.totals.total.display, '9.050 د.ك');
+      expect(cart.totals.discount.fils, 0);
+      expect(cart.totals.shipping.fils, 0);
+      expect(cart.totals.total.fils, 8050);
+      expect(cart.itemCount, 3);
+    });
+
+    test('an empty cart is read, not thrown on', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.cart,
+        'cart/cart_empty.cloak_shape.json',
+      );
+
+      final cart = _cartOf(await source.getCart());
+
+      expect(cart.isEmpty, isTrue);
+      expect(cart.itemCount, 0);
+      expect(cart.totals.total.fils, 0);
     });
   });
 
-  group('the fixture repository', () {
-    test('more than the stock is refused with the field', () async {
-      final result = await _fixtureRepository().updateItem('ci_prd_1', 9);
-      final failure = result.fold((f) => f, (_) => null);
+  group('the remote data source', () {
+    test('adding posts the numeric product id and reads the answer',
+        () async {
+      network.replySample(
+        'POST',
+        ApiEndPoint.cartItems,
+        'cart/cart_added.cloak_shape.json',
+        status: 201,
+      );
+
+      final cart = _cartOf(await source.addItem('20', 2));
+
+      expect(network.last('POST').data, {'product_id': 20, 'quantity': 2});
+      expect(network.calls.map((c) => c.method), ['POST']);
+      expect(cart.items.last.productId, '20');
+      expect(cart.totals.subtotal.fils, 13050);
+    });
+
+    test('a quantity change patches the line to an absolute value', () async {
+      network.replySample(
+        'PATCH',
+        ApiEndPoint.cartItem('2'),
+        'cart/cart_updated.cloak_shape.json',
+      );
+
+      final cart = _cartOf(await source.updateItem('2', 3));
+
+      expect(network.last('PATCH').url, ApiEndPoint.cartItem('2'));
+      expect(network.last('PATCH').data, {'quantity': 3});
+      expect(cart.items.first.quantity, 3);
+      expect(cart.items.first.lineTotal.fils, 12750);
+    });
+
+    test('a removal answered without the cart reads it back', () async {
+      network
+        ..replySample(
+          'DELETE',
+          ApiEndPoint.cartItem('3'),
+          'cart/cart_ack.cloak_shape.json',
+        )
+        ..replySample(
+          'GET',
+          ApiEndPoint.cart,
+          'cart/cart_empty.cloak_shape.json',
+        );
+
+      final cart = _cartOf(await source.removeItem('3'));
+
+      expect(network.calls.map((c) => '${c.method} ${c.url}'), [
+        'DELETE ${ApiEndPoint.cartItem('3')}',
+        'GET ${ApiEndPoint.cart}',
+      ]);
+      expect(cart.isEmpty, isTrue);
+    });
+
+    test('a refused quantity is a field error', () async {
+      network.replySample(
+        'PATCH',
+        ApiEndPoint.cartItem('2'),
+        'cart/cart_quantity_422.cloak_shape.json',
+        status: 422,
+      );
+
+      final failure = _failureOf(await source.updateItem('2', 9));
 
       expect(failure, isA<ValidationFailure>());
-      expect(failure?.code, 'stock_insufficient');
-      expect((failure as ValidationFailure?)?['quantity'], '8 available');
+      expect(
+        (failure as ValidationFailure)['quantity'],
+        'The quantity field must not be greater than 8.',
+      );
     });
 
-    test('an unknown code is refused', () async {
-      final result = await _fixtureRepository().applyCoupon('NOPE');
+    test('a line that is gone reads as a failed update', () async {
+      network.reply(
+        'DELETE',
+        ApiEndPoint.cartItem('9'),
+        status: 404,
+        body: const {
+          'message': 'No query results for model [App\\Models\\CartItem] 9',
+        },
+      );
 
-      expect(result.fold((f) => f.code, (_) => null), 'coupon_invalid');
+      final failure = _failureOf(await source.removeItem('9'));
+
+      expect(failure.statusCode, 404);
+      expect(failure.message, 'cart_update_failed');
     });
 
-    test('a removed line leaves the cart recalculated', () async {
-      final result = await _fixtureRepository().removeItem('ci_prd_3');
-      final cart = result.getOrElse(() => throw StateError('failed'));
+    test('without a token the cart is a 401, not an empty cart', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.cart,
+        'betouti/unauthenticated_401.json',
+        status: 401,
+      );
 
-      expect(cart.items.single.id, 'ci_prd_1');
-      expect(cart.totals.subtotal.fils, 4250);
-    });
-  });
+      final failure = _failureOf(await source.getCart());
 
-  group('CartCubit', () {
-    test('a session start loads the cart, a sign-out forgets it', () async {
-      final session = SessionNotifier();
-      final cubit = _cubitOver(_fixtureRepository(), session);
-
-      session.signedIn();
-      await cubit.stream.firstWhere((s) => s.status == CartStatus.loaded);
-      expect(cubit.state.itemCount, 2);
-
-      session.signedOut();
-      expect(cubit.state, const CartState());
-      await cubit.close();
+      expect(failure, isA<ServerFailure>());
+      expect(failure.statusCode, 401);
     });
 
-    test('a quantity change lands the server cart', () async {
-      final session = SessionNotifier()..signedIn();
-      final cubit = _cubitOver(_fixtureRepository(), session);
-      await cubit.load();
+    test('a server error shows the generic message', () async {
+      network.replySample(
+        'POST',
+        ApiEndPoint.cartItems,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
 
-      await cubit.setQuantity(cubit.state.cart!.items.first, 3);
+      final failure = _failureOf(await source.addItem('20', 1));
 
-      expect(cubit.state.cart?.items.first.quantity, 3);
-      expect(cubit.state.cart?.totals.subtotal.fils, 4250 * 3 + 3800);
-      expect(cubit.state.busyItemIds, isEmpty);
-      await cubit.close();
+      expect(failure, isA<ServerFailure>());
+      expect(failure.message, 'server_error');
     });
 
-    test('a failed removal keeps the cart and reports why', () async {
-      final session = SessionNotifier()..signedIn();
-      final cubit = _cubitOver(_fixtureRepository(), session);
-      await cubit.load();
-      final before = cubit.state.cart;
+    test('offline is a network failure', () async {
+      final offline = CartRemoteDataSource(_OfflineNetwork());
 
-      await cubit.remove(_item());
-
-      expect(cubit.state.cart, before);
-      expect(cubit.state.errorMessage, isNotNull);
-      expect(cubit.state.busyItemIds, isEmpty);
-      await cubit.close();
-    });
-
-    test('a refused coupon is returned to the caller', () async {
-      final session = SessionNotifier()..signedIn();
-      final cubit = _cubitOver(_fixtureRepository(), session);
-      await cubit.load();
-
-      final refused = await cubit.applyCoupon('NOPE');
-      final applied = await cubit.applyCoupon('bayt10');
-
-      expect(refused?.code, 'coupon_invalid');
-      expect(applied, isNull);
-      expect(cubit.state.cart?.coupon?.code, 'BAYT10');
-      expect(cubit.state.isApplyingCoupon, isFalse);
-      await cubit.close();
+      expect(_failureOf(await offline.getCart()), isA<NetworkFailure>());
     });
   });
 
   group('widgets', () {
-    testWidgets('the totals table marks the discount', (tester) async {
-      await tester.pumpWidget(_app(TotalsTable(
+    testWidgets('the totals table leaves out a zero discount and fee',
+        (tester) async {
+      await tester.pumpWidget(_app(const TotalsTable(
         totals: OrderTotals(
-          subtotal: _kwd(8050),
-          discount: _kwd(500),
-          shipping: _kwd(1500),
-          total: _kwd(9050),
+          subtotal: Money(fils: 8050),
+          discount: Money(fils: 0),
+          shipping: Money(fils: 0),
+          total: Money(fils: 8050),
         ),
       )));
 
-      expect(find.text('8.050 KWD'), findsOneWidget);
-      expect(find.text('− 0.500 KWD'), findsOneWidget);
-      expect(find.text('1.500 KWD'), findsOneWidget);
-      expect(find.text('9.050 KWD'), findsOneWidget);
+      expect(find.text('cart_discount'), findsNothing);
+      expect(find.text('cart_shipping'), findsNothing);
+      expect(find.text(const Money(fils: 8050).display), findsNWidgets(2));
+
+      await tester.pumpWidget(_app(const TotalsTable(
+        totals: OrderTotals(
+          subtotal: Money(fils: 8050),
+          discount: Money(fils: 500),
+          shipping: Money(fils: 1500),
+          total: Money(fils: 9050),
+        ),
+      )));
+
+      expect(
+        find.text('− ${const Money(fils: 500).display}'),
+        findsOneWidget,
+      );
+      expect(find.text(const Money(fils: 1500).display), findsOneWidget);
     });
 
-    testWidgets('a line cannot go below one or above its stock',
+    testWidgets('a line cannot go below one or above its maximum',
         (tester) async {
       Future<QuantityStepper> stepperFor(CartItem item, bool busy) async {
         await tester.pumpWidget(_app(CartLineTile(
@@ -207,10 +306,14 @@ void main() {
       expect(busy.onIncrement, isNull);
     });
 
-    testWidgets('the cart page shows lines and applies a code',
+    testWidgets('the cart page shows the server lines and sends a step',
         (tester) async {
-      final session = SessionNotifier()..signedIn();
-      final cubit = _cubitOver(_fixtureRepository(), session);
+      network.replySample(
+        'PATCH',
+        ApiEndPoint.cartItem('2'),
+        'cart/cart_updated.cloak_shape.json',
+      );
+      final cubit = _cubitOver(network, SessionNotifier()..signedIn());
       addTearDown(cubit.close);
 
       await tester.pumpWidget(BlocProvider<CartCubit>.value(
@@ -220,24 +323,23 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(CartLineTile), findsNWidgets(2));
-      expect(find.text('BAYT10'), findsOneWidget);
+      expect(find.text('مجبوس دجاج'), findsOneWidget);
 
       await tester.tap(find.text('+').first);
       await tester.pumpAndSettle();
-      expect(cubit.state.cart?.items.first.quantity, 2);
 
-      await tester.enterText(find.byType(TextField), 'NOPE');
-      await tester.tap(find.text('cart_apply'));
-      await tester.pumpAndSettle();
-      expect(find.text('That discount code is not valid'), findsOneWidget);
+      expect(network.last('PATCH').data, {'quantity': 2});
+      expect(cubit.state.cart?.items.first.quantity, 3);
+      expect(find.text(const Money(fils: 16550).display), findsWidgets);
     });
 
     testWidgets('an empty cart says so', (tester) async {
-      final backend = _InstantBackend();
-      backend.removeCartItem('ci_prd_1', 'en');
-      backend.removeCartItem('ci_prd_3', 'en');
-      final session = SessionNotifier()..signedIn();
-      final cubit = _cubitOver(_fixtureRepository(backend), session);
+      network.replySample(
+        'GET',
+        ApiEndPoint.cart,
+        'cart/cart_empty.cloak_shape.json',
+      );
+      final cubit = _cubitOver(network, SessionNotifier()..signedIn());
       addTearDown(cubit.close);
 
       await tester.pumpWidget(BlocProvider<CartCubit>.value(

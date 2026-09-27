@@ -76,7 +76,7 @@ class OrderItemsSection extends StatelessWidget {
           ),
           const SizedBox(width: 12),
           Text(
-            line.lineTotalDisplay,
+            line.lineTotal.display,
             style: AppStrings.w800(12, 1).c(p.text),
           ),
         ],

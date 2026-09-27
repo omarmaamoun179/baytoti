@@ -99,6 +99,20 @@ class _OtpView extends StatelessWidget {
           ),
           style: AppStrings.w400(12.5, 1.7).c(p.neutral700),
         ),
+        if (state.challenge.demoCode case final code?) ...[
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+            decoration: BoxDecoration(
+              color: p.amberTint,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              'otp_demo_code'.tr(args: ['\u2066$code\u2069']),
+              style: AppStrings.w600(12, 1.5).c(p.amberInk),
+            ),
+          ),
+        ],
         const SizedBox(height: 20),
         SectionLabel('otp_code'.tr()),
         const SizedBox(height: 9),

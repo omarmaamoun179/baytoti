@@ -1,20 +1,19 @@
-import 'dart:async';
-
 import 'package:baytoti/core/domain/failure.dart';
+import 'package:baytoti/core/exceptions/app_exceptions.dart';
+import 'package:baytoti/core/network/api_endpoints.dart';
 import 'package:baytoti/core/theme/app_theme.dart';
 import 'package:baytoti/core/utils/money.dart';
 import 'package:baytoti/core/utils/screen_util_scope.dart';
-import 'package:baytoti/features/catalog/data/fixtures/fixture_backend.dart';
+import 'package:baytoti/features/catalog/data/datasources/favourites_data_source.dart';
+import 'package:baytoti/features/catalog/data/repositories/favourites_repository_impl.dart';
 import 'package:baytoti/features/catalog/domain/entities/family_ref.dart';
 import 'package:baytoti/features/catalog/domain/entities/image_ref.dart';
 import 'package:baytoti/features/catalog/domain/entities/product_badge.dart';
-import 'package:baytoti/features/catalog/domain/repositories/favourites_repository.dart';
 import 'package:baytoti/features/catalog/domain/usecases/favourite_usecases.dart';
 import 'package:baytoti/features/product/data/datasources/product_data_source.dart';
 import 'package:baytoti/features/product/data/models/product_detail_model.dart';
 import 'package:baytoti/features/product/data/repositories/product_repository_impl.dart';
 import 'package:baytoti/features/product/domain/entities/product_detail.dart';
-import 'package:baytoti/features/product/domain/repositories/product_repository.dart';
 import 'package:baytoti/features/product/domain/usecases/product_usecases.dart';
 import 'package:baytoti/features/product/presentation/cubit/product_cubit.dart';
 import 'package:baytoti/features/product/presentation/cubit/product_state.dart';
@@ -22,49 +21,108 @@ import 'package:baytoti/features/product/presentation/widgets/product_gallery.da
 import 'package:baytoti/features/product/presentation/widgets/product_meta_rows.dart';
 import 'package:baytoti/features/product/presentation/widgets/product_reviews.dart';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/fake_network.dart';
+
+const _food = 'product/food_detail.cloak_shape.json';
+const _unavailable = 'product/food_detail_unavailable.cloak_shape.json';
+const _foodSlug = 'kb-mkly-14';
+const _unavailableSlug = 'mkbws-dgag-15';
+
+Map<String, dynamic> _data(String sample) => Map<String, dynamic>.from(
+      (apiSample(sample)! as Map)['data'] as Map,
+    );
+
+Map<String, dynamic> _envelope(Map<String, dynamic> data) =>
+    {'success': true, 'message': '', 'data': data, 'errors': null};
+
 ProductDetail _product({
-  bool favourite = false,
-  int stock = 8,
+  int? stock,
   bool inStock = true,
-  int maxPerOrder = 3,
+  int? maxPerOrder,
+  int? preparationMinutes,
+  double? rating,
+  int? soldCount,
 }) =>
     ProductDetail(
-      id: 'prd_1',
-      name: 'Cardamom date cake',
-      price: const Money(fils: 4250, display: '4.250 KWD'),
+      id: '14',
+      name: 'Fried kubba',
+      price: const Money(fils: 4500),
       stock: stock,
       inStock: inStock,
       maxPerOrder: maxPerOrder,
-      family: const FamilyRef(id: 'fam_1', name: 'Umm Abdullah Family'),
-      isFavourite: favourite,
+      preparationMinutes: preparationMinutes,
+      rating: rating,
+      soldCount: soldCount,
+      family: const FamilyRef(id: '1', name: 'Amira Kitchen'),
     );
 
-class _FakeProductRepository implements ProductRepository {
-  Either<Failure, ProductDetail> answer;
+class _BrokenNetwork extends FakeNetwork {
+  final AppException error;
 
-  _FakeProductRepository(this.answer);
-
-  @override
-  Future<Either<Failure, ProductDetail>> getProduct(String productId) async =>
-      answer;
-}
-
-class _FakeFavouritesRepository implements FavouritesRepository {
-  Completer<Either<Failure, bool>> pending = Completer();
-  final List<bool> calls = [];
+  _BrokenNetwork(this.error);
 
   @override
-  Future<Either<Failure, bool>> setFavourite(
-    String productId,
-    bool favourite,
-  ) {
-    calls.add(favourite);
-    return pending.future;
-  }
+  Future<Response> get(
+    String url, {
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    bool skipAuthRefresh = false,
+  }) async =>
+      throw error;
 }
+
+FakeNetwork _backend() => FakeNetwork()
+  ..replySample('GET', ApiEndPoint.product(_foodSlug), _food)
+  ..replySample('GET', ApiEndPoint.product(_unavailableSlug), _unavailable)
+  ..replySample(
+    'GET',
+    ApiEndPoint.productReviews('14'),
+    'product/reviews.cloak_shape.json',
+  )
+  ..replySample(
+    'GET',
+    ApiEndPoint.productReviews('15'),
+    'product/reviews.cloak_shape.json',
+  )
+  ..replySample('GET', ApiEndPoint.wishlist, 'wishlist/wishlist.cloak_shape.json')
+  ..replySample(
+    'POST',
+    ApiEndPoint.wishlistItems,
+    'wishlist/add.cloak_shape.json',
+    status: 201,
+  )
+  ..replySample(
+    'DELETE',
+    ApiEndPoint.wishlistItem('7'),
+    'wishlist/remove.cloak_shape.json',
+  );
+
+ProductRepositoryImpl _repository(FakeNetwork network) => ProductRepositoryImpl(
+      ProductRemoteDataSource(network),
+      FavouritesRemoteDataSource(network),
+    );
+
+ProductCubit _cubit(FakeNetwork network) {
+  final repository = _repository(network);
+
+  return ProductCubit(
+    GetProductUseCase(repository),
+    GetProductReviewsUseCase(repository),
+    SetFavouriteUseCase(
+      FavouritesRepositoryImpl(FavouritesRemoteDataSource(network)),
+    ),
+  );
+}
+
+Failure _failure<T>(Either<Failure, T> result) =>
+    result.fold((failure) => failure, (value) => fail('expected a failure'));
+
+T _value<T>(Either<Failure, T> result) =>
+    result.getOrElse(() => fail('expected a value, got $result'));
 
 Future<void> _pump(WidgetTester tester, Widget child) =>
     tester.pumpWidget(ScreenUtilScope(
@@ -77,168 +135,353 @@ Future<void> _pump(WidgetTester tester, Widget child) =>
     ));
 
 void main() {
-  group('ProductDetailModel reads the contract', () {
-    test('the fixture product parses whole', () {
-      final json = FixtureBackend().product('prd_1', 'en');
-      final product = ProductDetailModel.fromJson(json);
+  group('ProductDetailModel reads the real shapes', () {
+    test('the live engine detail parses without its colours', () {
+      final product =
+          ProductDetailModel.fromJson(_data('cloak/product_detail.json'));
 
-      expect(product.id, 'prd_1');
-      expect(product.name, 'Cardamom date cake');
-      expect(product.price.fils, 4250);
-      expect(product.compareAt?.fils, 5000);
-      expect(product.badge, ProductBadge.bestSeller);
-      expect(product.rating, 4.9);
-      expect(product.soldCount, 212);
-      expect(product.stock, 8);
-      expect(product.inStock, isTrue);
-      expect(product.maxPerOrder, 8);
-      expect(product.maxQuantity, 8);
-      expect(product.fulfilment, {Fulfilment.delivery, Fulfilment.pickup});
-      expect(product.preparationTime, isNotEmpty);
+      expect(product.id, '32');
+      expect(product.slug, 'aabay-mnasbat-fakhr-6');
+      expect(product.name, isNotEmpty);
       expect(product.description, isNotEmpty);
-      expect(product.family.id, 'fam_1');
-      expect(product.family.isVerified, isTrue);
-      expect(product.familyAvatar?.url, 'assets/images/catalog/fam_1_avatar.jpg');
-      expect(product.images.single.url, 'assets/images/catalog/prd_1.jpg');
-      expect(product.reviews, isNotEmpty);
-      expect(product.reviews.first.authorName, isNotEmpty);
+      expect(product.price.fils, 55000);
+      expect(product.compareAt?.fils, 65000);
+      expect(product.badge, ProductBadge.featured);
+      expect(product.images, isEmpty);
+      expect(product.family.id, '6');
+      expect(product.family.slug, 'mkhml-6');
+      expect(product.family.name, 'مخمل');
+      expect(product.rating, isNull);
+      expect(product.soldCount, isNull);
+      expect(product.stock, isNull);
+      expect(product.preparationMinutes, isNull);
+      expect(product.fulfilment, isEmpty);
+      expect(product.inStock, isTrue);
+      expect(product.maxQuantity, ProductDetail.quantityCeiling);
+      expect(product.isFavourite, isFalse);
     });
 
-    test('the API sample reads images, avatar and reviews', () {
+    test('a food product reads its base price, photos and preparation', () {
+      final product = ProductDetailModel.fromJson(_data(_food));
+
+      expect(product.id, '14');
+      expect(product.slug, _foodSlug);
+      expect(product.price.fils, 4500);
+      expect(product.compareAt?.fils, 5250);
+      expect(product.badge, isNull);
+      expect(product.preparationMinutes, 45);
+      expect(product.inStock, isTrue);
+      expect(product.canOrder, isTrue);
+      expect(product.description, startsWith('كبة محضرة'));
+      expect(product.images.map((i) => i.alt), ['كبة مقلية', isNotEmpty]);
+      expect(product.images.first.url, contains('photo-1541518763669'));
+      expect(product.family.slug, 'mtbkh-amyr-1');
+      expect(product.family.isVerified, isTrue);
+      expect(product.family.images.firstUrl, contains('photo-1556910103'));
+    });
+
+    test('an unavailable product cannot be ordered', () {
+      final product = ProductDetailModel.fromJson(_data(_unavailable));
+
+      expect(product.inStock, isFalse);
+      expect(product.canOrder, isFalse);
+      expect(product.compareAt, isNull);
+      expect(product.badge, ProductBadge.featured);
+      expect(product.preparationMinutes, 1440);
+      expect(product.description, 'مكبوس دجاج بالبهارات الكويتية.');
+      expect(product.images, isEmpty);
+    });
+
+    test('counts the design shows are read when the server sends them', () {
       final product = ProductDetailModel.fromJson({
-        'id': 'prd_1',
-        'name': 'Cake',
-        'description': 'Soft',
-        'base_price': 4.25,
-        'compare_price': null,
-        'badge': 'new',
-        'rating': 4.9,
-        'rating_count': 63,
+        ..._data(_food),
+        'stock': 6,
+        'max_per_order': 4,
         'sold_count': 212,
-        'stock': 0,
-        'in_stock': false,
-        'preparation_time_display': '٢٤ ساعة',
+        'average_rating': 4.8,
         'fulfilment': ['pickup', 'drone'],
-        'max_per_order': 10,
-        'images': [
-          {'url': 'https://cdn/a.jpg', 'width': 800, 'height': 800, 'alt': 'a'},
-          {'url': 'https://cdn/b.jpg'},
-        ],
-        'family': {
-          'id': 'fam_1',
-          'name': 'Family',
-          'city': 'حولي',
-          'rating': 4.9,
-          'is_verified': true,
-          'avatar': {'url': 'https://cdn/avatar.jpg'},
-        },
-        'is_favourite': true,
-        'reviews_preview': [
-          {
-            'id': 'rev_4',
-            'author_name': 'مريم ا.',
-            'rating': 4,
-            'body': 'Good',
-            'created_display': 'قبل أسبوع',
-          },
-        ],
+        'is_favorite': true,
       });
 
-      expect(product.compareAt, isNull);
-      expect(product.badge, ProductBadge.newArrival);
-      expect(product.images.length, 2);
-      expect(product.images.first.width, 800);
-      expect(product.familyAvatar?.url, 'https://cdn/avatar.jpg');
+      expect(product.stock, 6);
+      expect(product.maxPerOrder, 4);
+      expect(product.maxQuantity, 4);
+      expect(product.soldCount, 212);
+      expect(product.rating, 4.8);
       expect(product.fulfilment, {Fulfilment.pickup});
       expect(product.isFavourite, isTrue);
-      expect(product.canOrder, isFalse);
-      expect(product.reviews.single.stars, '★★★★☆');
-      expect(product.reviews.single.createdDisplay, 'قبل أسبوع');
     });
 
-    test('the quantity is limited by stock and by the order cap', () {
+    test('a product without an id is refused', () {
+      expect(
+        () => ProductDetailModel.fromJson(const {'name': 'x'}),
+        throwsFormatException,
+      );
+    });
+
+    test('the quantity is limited by stock, the order cap and the ceiling', () {
       expect(_product(stock: 2, maxPerOrder: 10).maxQuantity, 2);
       expect(_product(stock: 30, maxPerOrder: 10).maxQuantity, 10);
+      expect(_product().maxQuantity, ProductDetail.quantityCeiling);
       expect(_product(stock: 5, inStock: false).maxQuantity, 0);
+      expect(_product(stock: 0).canOrder, isFalse);
+    });
+
+    test('reviews read the nested reviewer and the comment', () {
+      final reviews = ReviewModel.listFrom(
+        (apiSample('product/reviews.cloak_shape.json')! as Map)['data'],
+      );
+
+      expect(reviews.length, 2);
+      expect(reviews.first.id, '7');
+      expect(reviews.first.authorName, 'نور العلي');
+      expect(reviews.first.rating, 5);
+      expect(reviews.first.body, startsWith('الكبة'));
+      expect(reviews.first.stars, '★★★★★');
+      expect(reviews.last.authorName, 'سارة');
+      expect(reviews.last.body, isEmpty);
+      expect(reviews.last.stars, '★★★★☆');
     });
   });
 
-  group('the mock data source through the repository', () {
-    final repository = ProductRepositoryImpl(
-      ProductMockDataSource(FixtureBackend(), () async => 'ar'),
-    );
+  group('ProductRemoteDataSource', () {
+    late FakeNetwork network;
+    late ProductRemoteDataSource source;
 
-    test('a known product comes back in the asked language', () async {
-      final result = await repository.getProduct('prd_1');
+    setUp(() {
+      network = _backend();
+      source = ProductRemoteDataSource(network);
+    });
 
-      expect(result.isRight(), isTrue);
-      result.fold((_) {}, (product) {
-        expect(product.name, 'كيك التمر بالهيل');
-        expect(product.price.display, contains('د.ك'));
+    test('a product is read by its slug', () async {
+      final product = _value(await source.getProduct(_foodSlug));
+
+      expect(product.id, '14');
+      expect(network.last('GET').url, ApiEndPoint.product(_foodSlug));
+    });
+
+    test('an unknown slug is a not-found failure', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.product('no-such-slug'),
+        'product/not_found_404.cloak_shape.json',
+        status: 404,
+      );
+
+      final failure = _failure(await source.getProduct('no-such-slug'));
+
+      expect(failure, isA<ServerFailure>());
+      expect(failure.statusCode, 404);
+      expect(failure.message, 'product_not_found');
+    });
+
+    test('a server error stays generic', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.product(_foodSlug),
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+
+      final failure = _failure(await source.getProduct(_foodSlug));
+
+      expect(failure.statusCode, 500);
+      expect(failure.message, 'server_error');
+    });
+
+    test('a signed-out answer is a 401 failure', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.product(_foodSlug),
+        'betouti/unauthenticated_401.json',
+        status: 401,
+      );
+
+      expect(_failure(await source.getProduct(_foodSlug)).statusCode, 401);
+    });
+
+    test('offline is a network failure', () async {
+      final offline =
+          ProductRemoteDataSource(_BrokenNetwork(const ConnectionException()));
+
+      expect(
+        _failure(await offline.getProduct(_foodSlug)),
+        isA<NetworkFailure>(),
+      );
+      expect(_failure(await offline.getReviews('14')), isA<NetworkFailure>());
+    });
+
+    test('a payload without an id is an unexpected failure', () async {
+      network.reply(
+        'GET',
+        ApiEndPoint.product(_foodSlug),
+        body: _envelope({'name': 'x'}),
+      );
+
+      final failure = _failure(await source.getProduct(_foodSlug));
+
+      expect(failure, isA<UnexpectedFailure>());
+      expect(failure.message, 'product_failed');
+    });
+
+    test('reviews are a short first page, asked for by product id', () async {
+      final reviews = _value(await source.getReviews('14'));
+
+      expect(reviews.length, 2);
+      expect(network.last('GET').url, ApiEndPoint.productReviews('14'));
+      expect(network.last('GET').query, {
+        'page': 1,
+        'per_page': ProductRemoteDataSource.reviewPreviewSize,
       });
     });
 
-    test('an unknown product is a not-found failure', () async {
-      final result = await repository.getProduct('prd_missing');
-
-      result.fold(
-        (failure) {
-          expect(failure, isA<ServerFailure>());
-          expect(failure.statusCode, 404);
-          expect(failure.message, 'product_not_found');
-        },
-        (_) => fail('expected a failure'),
+    test('a reviews answer without a list is a failure', () async {
+      network.reply(
+        'GET',
+        ApiEndPoint.productReviews('14'),
+        body: _envelope({'id': 1}),
       );
+
+      expect(_failure(await source.getReviews('14')), isA<UnexpectedFailure>());
+    });
+  });
+
+  group('ProductRepositoryImpl', () {
+    test('a product in the wishlist comes back saved', () async {
+      final network = _backend();
+
+      final product = _value(await _repository(network).getProduct(_foodSlug));
+
+      expect(product.isFavourite, isTrue);
+      expect(
+        network.calls.map((c) => c.url),
+        containsAll([ApiEndPoint.wishlist, ApiEndPoint.product(_foodSlug)]),
+      );
+    });
+
+    test('a product missing from the wishlist is not saved', () async {
+      final product = _value(
+        await _repository(_backend()).getProduct(_unavailableSlug),
+      );
+
+      expect(product.isFavourite, isFalse);
+    });
+
+    test('an unreadable wishlist does not hide the product', () async {
+      final network = _backend()
+        ..replySample(
+          'GET',
+          ApiEndPoint.wishlist,
+          'betouti/products_guest_500.json',
+          status: 500,
+        );
+
+      final product = _value(await _repository(network).getProduct(_foodSlug));
+
+      expect(product.id, '14');
+      expect(product.isFavourite, isFalse);
+    });
+
+    test('a missing product is a failure whatever the wishlist says',
+        () async {
+      final network = _backend()
+        ..replySample(
+          'GET',
+          ApiEndPoint.product(_foodSlug),
+          'product/not_found_404.cloak_shape.json',
+          status: 404,
+        );
+
+      final failure =
+          _failure(await _repository(network).getProduct(_foodSlug));
+
+      expect(failure.message, 'product_not_found');
     });
   });
 
   group('ProductCubit', () {
-    late _FakeProductRepository products;
-    late _FakeFavouritesRepository favourites;
+    late FakeNetwork network;
     late ProductCubit cubit;
 
     setUp(() {
-      products = _FakeProductRepository(Right(_product()));
-      favourites = _FakeFavouritesRepository();
-      cubit = ProductCubit(
-        GetProductUseCase(products),
-        SetFavouriteUseCase(favourites),
-      );
+      network = _backend();
+      cubit = _cubit(network);
     });
 
     tearDown(() => cubit.close());
 
-    test('a load shows the product with a quantity of one', () async {
-      await cubit.load('prd_1');
+    test('a load shows the product, whether it is saved, and its reviews',
+        () async {
+      await cubit.load(_foodSlug);
 
       expect(cubit.state.status, ProductStatus.loaded);
-      expect(cubit.state.product?.id, 'prd_1');
+      expect(cubit.state.product?.id, '14');
+      expect(cubit.state.product?.isFavourite, isTrue);
       expect(cubit.state.quantity, 1);
+      expect(cubit.state.reviews.length, 2);
+      expect(cubit.state.isLoadingReviews, isFalse);
+      expect(cubit.state.errorMessage, isNull);
+      expect(network.last('GET').url, ApiEndPoint.productReviews('14'));
+    });
+
+    test('failing reviews keep the product and show none', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.productReviews('14'),
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+
+      await cubit.load(_foodSlug);
+
+      expect(cubit.state.status, ProductStatus.loaded);
+      expect(cubit.state.reviews, isEmpty);
+      expect(cubit.state.isLoadingReviews, isFalse);
       expect(cubit.state.errorMessage, isNull);
     });
 
-    test('a failed load is an error with the message', () async {
-      products.answer = const Left(NetworkFailure(message: 'offline'));
+    test('a failed load is an error and asks for no reviews', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.product(_foodSlug),
+        'product/not_found_404.cloak_shape.json',
+        status: 404,
+      );
 
-      await cubit.load('prd_1');
+      await cubit.load(_foodSlug);
 
       expect(cubit.state.status, ProductStatus.error);
-      expect(cubit.state.errorMessage, 'offline');
+      expect(cubit.state.errorMessage, 'product_not_found');
       expect(cubit.state.product, isNull);
+      expect(
+        network.calls.map((c) => c.url),
+        isNot(contains(ApiEndPoint.productReviews('14'))),
+      );
     });
 
-    test('a retry reads the same product again', () async {
-      products.answer = const Left(NetworkFailure(message: 'offline'));
-      await cubit.load('prd_1');
-      products.answer = Right(_product());
+    test('a retry reads the same slug again', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.product(_foodSlug),
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+      await cubit.load(_foodSlug);
+      network.replySample('GET', ApiEndPoint.product(_foodSlug), _food);
 
       await cubit.retry();
 
       expect(cubit.state.status, ProductStatus.loaded);
+      expect(cubit.state.product?.slug, _foodSlug);
     });
 
-    test('the quantity stays between one and the limit', () async {
-      await cubit.load('prd_1');
+    test('the quantity stays between one and the order cap', () async {
+      network.reply(
+        'GET',
+        ApiEndPoint.product(_foodSlug),
+        body: _envelope({..._data(_food), 'max_per_order': 3}),
+      );
+      await cubit.load(_foodSlug);
 
       cubit.decrement();
       expect(cubit.state.quantity, 1);
@@ -255,9 +498,8 @@ void main() {
       expect(cubit.state.quantity, 2);
     });
 
-    test('an out-of-stock product cannot be ordered', () async {
-      products.answer = Right(_product(stock: 0, inStock: false));
-      await cubit.load('prd_1');
+    test('an unavailable product cannot be ordered', () async {
+      await cubit.load(_unavailableSlug);
 
       cubit.increment();
 
@@ -266,48 +508,85 @@ void main() {
       expect(cubit.state.canDecrement, isFalse);
     });
 
-    test('a favourite shows at once and stays when confirmed', () async {
-      await cubit.load('prd_1');
+    test('unsaving shows at once and removes the wishlist row', () async {
+      await cubit.load(_foodSlug);
 
       final toggle = cubit.toggleFavourite();
-      expect(cubit.state.product?.isFavourite, isTrue);
+      expect(cubit.state.product?.isFavourite, isFalse);
       expect(cubit.state.isSavingFavourite, isTrue);
 
-      cubit.toggleFavourite();
-      expect(favourites.calls, [true]);
-
-      favourites.pending.complete(const Right(true));
-      await toggle;
-
-      expect(cubit.state.product?.isFavourite, isTrue);
-      expect(cubit.state.isSavingFavourite, isFalse);
-      expect(cubit.state.errorMessage, isNull);
-    });
-
-    test('a refused favourite rolls back and reports', () async {
-      await cubit.load('prd_1');
-
-      final toggle = cubit.toggleFavourite();
-      favourites.pending.complete(
-        const Left(ServerFailure(message: 'favourite_failed')),
-      );
+      await cubit.toggleFavourite();
       await toggle;
 
       expect(cubit.state.product?.isFavourite, isFalse);
+      expect(cubit.state.isSavingFavourite, isFalse);
+      expect(cubit.state.errorMessage, isNull);
+      expect(network.last('DELETE').url, ApiEndPoint.wishlistItem('7'));
+      expect(network.calls.where((c) => c.method == 'DELETE').length, 1);
+    });
+
+    test('saving posts the product id', () async {
+      await cubit.load(_unavailableSlug);
+
+      await cubit.toggleFavourite();
+
+      expect(cubit.state.product?.isFavourite, isTrue);
+      expect(network.last('POST').data, {'product_id': 15});
+    });
+
+    test('a refused save rolls back and reports', () async {
+      network.replySample(
+        'POST',
+        ApiEndPoint.wishlistItems,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+      await cubit.load(_unavailableSlug);
+
+      await cubit.toggleFavourite();
+
+      expect(cubit.state.product?.isFavourite, isFalse);
       expect(cubit.state.status, ProductStatus.loaded);
-      expect(cubit.state.errorMessage, 'favourite_failed');
+      expect(cubit.state.errorMessage, 'server_error');
     });
   });
 
   group('product widgets', () {
-    testWidgets('meta rows name the stock and the fulfilment', (tester) async {
+    testWidgets('meta rows show only what the server sent', (tester) async {
       await _pump(
         tester,
-        ProductMetaRows(product: _product(stock: 0, inStock: false)),
+        ProductMetaRows(product: _product(preparationMinutes: 45)),
+      );
+
+      expect(find.text('product_preparation'), findsOneWidget);
+      expect(find.text('product_preparation_minutes'), findsOneWidget);
+      expect(find.text('product_stock'), findsNothing);
+      expect(find.text('product_rating'), findsNothing);
+      expect(find.text('product_fulfilment'), findsNothing);
+    });
+
+    testWidgets('an unavailable product says so', (tester) async {
+      await _pump(
+        tester,
+        ProductMetaRows(product: _product(inStock: false)),
       );
 
       expect(find.text('product_out_of_stock'), findsOneWidget);
-      expect(find.text('product_rating'), findsNothing);
+    });
+
+    test('the meta values read the optional fields', () {
+      expect(ProductMetaRows.preparation(null), isNull);
+      expect(ProductMetaRows.preparation(0), isNull);
+      expect(ProductMetaRows.preparation(1440), 'product_preparation_hours');
+      expect(ProductMetaRows.preparation(90), 'product_preparation_minutes');
+      expect(ProductMetaRows.stock(_product()), isNull);
+      expect(ProductMetaRows.stock(_product(stock: 4)), 'product_in_stock');
+      expect(ProductMetaRows.rating(_product()), isNull);
+      expect(ProductMetaRows.rating(_product(rating: 4.8)), '★ 4.8');
+      expect(
+        ProductMetaRows.rating(_product(rating: 4.8, soldCount: 12)),
+        'product_rating_value',
+      );
       expect(
         ProductMetaRows.fulfilmentKey({Fulfilment.delivery, Fulfilment.pickup}),
         'fulfilment_delivery_or_pickup',
@@ -325,7 +604,7 @@ void main() {
         const ProductReviews(
           reviews: [
             Review(id: 'r1', authorName: 'Mariam A.', rating: 5, body: 'Fresh'),
-            Review(id: 'r2', authorName: 'Abdullah H.', rating: 4, body: 'Ok'),
+            Review(id: 'r2', authorName: 'Abdullah H.', rating: 4, body: ''),
           ],
         ),
       );
@@ -333,6 +612,8 @@ void main() {
       expect(find.byType(ReviewCard), findsNWidgets(2));
       expect(find.text('★★★★★'), findsOneWidget);
       expect(find.text('★★★★☆'), findsOneWidget);
+      expect(find.text('Fresh'), findsOneWidget);
+      expect(find.text(''), findsNothing);
     });
 
     testWidgets('the gallery draws a bar per image and follows the swipe',

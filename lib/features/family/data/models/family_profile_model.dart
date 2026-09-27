@@ -5,6 +5,7 @@ import '../../domain/entities/family_profile.dart';
 class FamilyProfileModel extends FamilyProfile {
   const FamilyProfileModel({
     required super.id,
+    super.slug,
     required super.name,
     super.story,
     super.city,
@@ -13,25 +14,25 @@ class FamilyProfileModel extends FamilyProfile {
     super.avatar,
     super.productCount,
     super.rating,
-    super.followerCount,
-    super.isFollowing,
   });
 
   factory FamilyProfileModel.fromJson(Map<String, dynamic> json) {
-    final stats = jsonMap(json['stats']);
+    final id = jsonId(json['id']);
+    if (id == null) throw const FormatException('a store without an id');
 
     return FamilyProfileModel(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      story: json['story'] as String? ?? '',
-      city: json['city'] as String?,
-      isVerified: json['is_verified'] as bool? ?? false,
-      cover: ImageRefModel.maybeFrom(json['cover']),
-      avatar: ImageRefModel.maybeFrom(json['avatar']),
-      productCount: jsonInt(stats['product_count']) ?? 0,
-      rating: jsonDouble(stats['rating']),
-      followerCount: jsonInt(stats['follower_count']) ?? 0,
-      isFollowing: json['is_following'] as bool? ?? false,
+      id: id,
+      slug: jsonString(json['slug']) ?? id,
+      name: jsonString(json['name'])?.trim() ?? '',
+      story: jsonString(json['description'])?.trim() ?? '',
+      city: jsonString(jsonMap(json['governorate'])['name']) ??
+          jsonString(json['city']),
+      isVerified:
+          jsonBool(json['is_trusted'] ?? json['is_verified']) ?? false,
+      cover: ImageRefModel.maybeFrom(json['banner_url'] ?? json['banner']),
+      avatar: ImageRefModel.maybeFrom(json['logo_url'] ?? json['logo']),
+      productCount: jsonCount(json['products_count'] ?? json['product_count']),
+      rating: jsonDouble(json['average_rating'] ?? json['rating']),
     );
   }
 }

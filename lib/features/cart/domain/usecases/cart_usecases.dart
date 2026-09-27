@@ -56,13 +56,3 @@ class RemoveCartItemUseCase implements UseCase<Either<Failure, Cart>, String> {
   Future<Either<Failure, Cart>> call(String itemId) =>
       _repository.removeItem(itemId);
 }
-
-class ApplyCouponUseCase implements UseCase<Either<Failure, Cart>, String> {
-  final CartRepository _repository;
-
-  ApplyCouponUseCase(this._repository);
-
-  @override
-  Future<Either<Failure, Cart>> call(String code) =>
-      _repository.applyCoupon(code);
-}

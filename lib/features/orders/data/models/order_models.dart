@@ -1,76 +1,118 @@
 import '../../../../core/domain/paged.dart';
+import '../../../../core/exceptions/app_exceptions.dart';
+import '../../../../core/network/api_response.dart';
 import '../../../../core/utils/json.dart';
+import '../../../../core/utils/money.dart';
 import '../../../catalog/data/models/catalog_models.dart';
+import '../../../catalog/domain/entities/family_ref.dart';
+import '../../../catalog/domain/entities/order_totals.dart';
 import '../../domain/entities/order.dart';
+
+OrderTotals _totalsFrom(Map<String, dynamic> json) {
+  final financials = jsonMap(json['financials']);
+  final subtotal =
+      Money.parse(financials['subtotal']) ?? const Money(fils: 0);
+  final discount =
+      Money.parse(financials['discount']) ?? const Money(fils: 0);
+  final shipping = Money.parse(
+        financials['shipping_fee'] ??
+            financials['shipping'] ??
+            financials['delivery_fee'],
+      ) ??
+      const Money(fils: 0);
+
+  return OrderTotals(
+    subtotal: subtotal,
+    discount: discount,
+    shipping: shipping,
+    total: Money.parse(financials['total']) ??
+        Money(fils: subtotal.fils - discount.fils + shipping.fils),
+  );
+}
+
+FamilyRef? _familyFrom(Map<String, dynamic> json) {
+  final store = jsonMapOrNull(json['store']);
+  return store == null ? null : FamilyRefModel.fromJson(store);
+}
+
+DateTime? _dateFrom(Object? value) =>
+    DateTime.tryParse(jsonString(value) ?? '')?.toLocal();
+
+String _referenceFrom(Map<String, dynamic> json) =>
+    jsonString(json['order_number'] ?? json['reference']) ?? '';
 
 class OrderSummaryModel extends OrderSummary {
   const OrderSummaryModel({
     required super.id,
     required super.reference,
     super.status,
-    required super.totalDisplay,
+    required super.total,
+    super.family,
   });
 
   factory OrderSummaryModel.fromJson(Map<String, dynamic> json) =>
       OrderSummaryModel(
-        id: json['id'] as String,
-        reference: json['reference'] as String? ?? '',
+        id: jsonId(json['id']) ?? '',
+        reference: _referenceFrom(json),
         status: OrderStatus.fromWire(json['status']),
-        totalDisplay: json['total_display'] as String? ?? '',
+        total: _totalsFrom(json).total,
+        family: _familyFrom(json),
       );
+
+  static List<OrderSummary> listFrom(Object? value) => [
+        for (final item in jsonList(value)) OrderSummaryModel.fromJson(item),
+      ].where((order) => order.id.isNotEmpty).toList();
 
   static Paged<OrderSummary> pageFrom(Map<String, dynamic> json) {
-    final meta = jsonMap(json['meta']);
+    final page = Paged.fromJson(json, OrderSummaryModel.fromJson);
     return Paged<OrderSummary>(
-      items: [
-        for (final item in jsonList(json['items']))
-          OrderSummaryModel.fromJson(item),
-      ],
-      currentPage: jsonInt(meta['current_page']) ?? 1,
-      lastPage: jsonInt(meta['last_page']) ?? 1,
-      total: jsonInt(meta['total']),
+      items: page.items.where((order) => order.id.isNotEmpty).toList(),
+      currentPage: page.currentPage,
+      lastPage: page.lastPage,
+      total: page.total,
     );
   }
-}
 
-class OrderTimelineStepModel extends OrderTimelineStep {
-  const OrderTimelineStepModel({
-    super.status,
-    required super.label,
-    super.at,
-    super.atDisplay,
-    required super.done,
-  });
+  static List<OrderSummary> listFromCheckout(ApiResponse response) {
+    final data = jsonMap(response.body)['data'];
+    if (data is List) return listFrom(data);
 
-  factory OrderTimelineStepModel.fromJson(Map<String, dynamic> json) =>
-      OrderTimelineStepModel(
-        status: OrderStatus.fromWire(json['status']),
-        label: json['label'] as String? ?? '',
-        at: switch (json['at']) {
-          final String value => DateTime.tryParse(value),
-          _ => null,
-        },
-        atDisplay: json['at_display'] as String?,
-        done: json['done'] as bool? ?? false,
-      );
+    final map = jsonMap(data);
+    final orders = map['orders'];
+    if (orders is List) return listFrom(orders);
+
+    final order = jsonMapOrNull(map['order']) ?? map;
+    return order.containsKey('order_number') ? listFrom([order]) : const [];
+  }
 }
 
 class OrderLineModel extends OrderLine {
   const OrderLineModel({
-    required super.productId,
+    required super.id,
+    super.productId,
     required super.name,
     required super.quantity,
-    required super.lineTotalDisplay,
+    required super.unitPrice,
+    required super.lineTotal,
     super.image,
   });
 
-  factory OrderLineModel.fromJson(Map<String, dynamic> json) => OrderLineModel(
-        productId: json['product_id'] as String,
-        name: json['name'] as String,
-        quantity: jsonInt(json['quantity']) ?? 1,
-        lineTotalDisplay: json['line_total_display'] as String? ?? '',
-        image: ImageRefModel.maybeFrom(json['image']),
-      );
+  factory OrderLineModel.fromJson(Map<String, dynamic> json) {
+    final quantity = jsonCount(json['quantity']) ?? 1;
+    final unitPrice =
+        Money.parse(json['unit_price']) ?? const Money(fils: 0);
+
+    return OrderLineModel(
+      id: jsonId(json['id']) ?? '',
+      productId: jsonId(json['product_id']),
+      name: jsonString(json['product_name'] ?? json['name']) ?? '',
+      quantity: quantity,
+      unitPrice: unitPrice,
+      lineTotal: Money.parse(json['total']) ??
+          Money(fils: unitPrice.fils * quantity),
+      image: ImageRefModel.maybeFrom(json['image']),
+    );
+  }
 }
 
 class OrderDetailModel extends OrderDetail {
@@ -78,35 +120,37 @@ class OrderDetailModel extends OrderDetail {
     required super.id,
     required super.reference,
     super.status,
-    super.etaDisplay,
-    required super.timeline,
     required super.items,
     required super.totals,
     super.family,
-    super.canRate,
-    super.canCancel,
+    super.notes,
+    super.createdAt,
+    super.updatedAt,
   });
 
-  factory OrderDetailModel.fromJson(Map<String, dynamic> json) {
-    final family = jsonMapOrNull(json['family']);
+  factory OrderDetailModel.fromJson(Map<String, dynamic> json) =>
+      OrderDetailModel(
+        id: jsonId(json['id']) ?? '',
+        reference: _referenceFrom(json),
+        status: OrderStatus.fromWire(json['status']),
+        items: [
+          for (final item in jsonList(json['items']))
+            OrderLineModel.fromJson(item),
+        ],
+        totals: _totalsFrom(json),
+        family: _familyFrom(json),
+        notes: jsonString(json['notes']),
+        createdAt: _dateFrom(json['created_at']),
+        updatedAt: _dateFrom(json['updated_at']),
+      );
 
-    return OrderDetailModel(
-      id: json['id'] as String,
-      reference: json['reference'] as String? ?? '',
-      status: OrderStatus.fromWire(json['status']),
-      etaDisplay: json['eta_display'] as String?,
-      timeline: [
-        for (final step in jsonList(json['timeline']))
-          OrderTimelineStepModel.fromJson(step),
-      ],
-      items: [
-        for (final item in jsonList(json['items']))
-          OrderLineModel.fromJson(item),
-      ],
-      totals: OrderTotalsModel.fromJson(jsonMap(json['totals'])),
-      family: family == null ? null : FamilyRefModel.fromJson(family),
-      canRate: json['can_rate'] as bool? ?? false,
-      canCancel: json['can_cancel'] as bool? ?? false,
-    );
+  static OrderDetailModel fromResponse(ApiResponse response) {
+    final data = response.json;
+    final order =
+        OrderDetailModel.fromJson(jsonMapOrNull(data['order']) ?? data);
+    if (order.id.isEmpty) {
+      throw const RequestException('order_not_found', statusCode: 404);
+    }
+    return order;
   }
 }

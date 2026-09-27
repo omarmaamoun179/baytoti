@@ -4,6 +4,7 @@ class AppRoutes {
   static const String welcome = '/welcome';
   static const String auth = '/auth';
   static const String otp = '/otp';
+  static const String location = '/location';
 
   static const String home = '/home';
   static const String explore = '/explore';
@@ -18,6 +19,9 @@ class AppRoutes {
   static const String orderSegment = 'orders';
   static const String notificationsSegment = 'notifications';
   static const String checkoutSegment = 'checkout';
+  static const String favouritesSegment = 'favourites';
+  static const String addressesSegment = 'addresses';
+  static const String newSegment = 'new';
 
   static const String fromQuery = 'from';
   static const String tabQuery = 'tab';
@@ -31,6 +35,11 @@ class AppRoutes {
           if (signup) tabQuery: signupTab,
           fromQuery: ?from,
         },
+      ).toString();
+
+  static String locationFor({String? from}) => Uri(
+        path: location,
+        queryParameters: {fromQuery: ?from},
       ).toString();
 
   static String searchFor({String? query, String? categoryId}) => Uri(

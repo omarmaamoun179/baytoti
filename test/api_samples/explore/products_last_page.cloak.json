@@ -1,0 +1,163 @@
+{
+  "data": [
+    {
+      "id": 2,
+      "name": "عباية حرير فاخرة 1",
+      "slug": "aabay-hryr-fakhr-1",
+      "short_description": "تصميم أنيق بخامة فاخرة مناسب للإطلالات اليومية والمناسبات.",
+      "price": {
+        "current": "42.000",
+        "original": "49.000"
+      },
+      "thumbnail": {
+        "image": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80",
+        "alt_text": "https://images.unsplash.com/photo-1496747611176-843222e1e57c?auto=format&fit=crop&w=1200&q=80"
+      },
+      "category": {
+        "id": 2,
+        "name": "فساتين الزفاف",
+        "slug": "wedding-dresses"
+      },
+      "store": {
+        "id": 1,
+        "name": "دار لمى",
+        "slug": "dar-lm-1"
+      },
+      "is_featured": true
+    },
+    {
+      "id": 1,
+      "name": "عباية ديزرت ملكي 1",
+      "slug": "aabay-dyzrt-mlky-1",
+      "short_description": "تصميم أنيق بخامة فاخرة مناسب للإطلالات اليومية والمناسبات.",
+      "price": {
+        "current": "38.000",
+        "original": "45.000"
+      },
+      "thumbnail": {
+        "image": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=80",
+        "alt_text": "https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=1200&q=80"
+      },
+      "category": {
+        "id": 1,
+        "name": "العبايات",
+        "slug": "abayas"
+      },
+      "store": {
+        "id": 1,
+        "name": "دار لمى",
+        "slug": "dar-lm-1"
+      },
+      "is_featured": true
+    }
+  ],
+  "links": {
+    "first": "https://cloak.alqudiry-solutions.com/api/v1/products?page=1",
+    "last": "https://cloak.alqudiry-solutions.com/api/v1/products?page=18",
+    "prev": "https://cloak.alqudiry-solutions.com/api/v1/products?page=17",
+    "next": null
+  },
+  "meta": {
+    "current_page": 18,
+    "from": 35,
+    "last_page": 18,
+    "links": [
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=17",
+        "label": "&laquo; السابق",
+        "page": 17,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=1",
+        "label": "1",
+        "page": 1,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=2",
+        "label": "2",
+        "page": 2,
+        "active": false
+      },
+      {
+        "url": null,
+        "label": "...",
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=9",
+        "label": "9",
+        "page": 9,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=10",
+        "label": "10",
+        "page": 10,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=11",
+        "label": "11",
+        "page": 11,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=12",
+        "label": "12",
+        "page": 12,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=13",
+        "label": "13",
+        "page": 13,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=14",
+        "label": "14",
+        "page": 14,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=15",
+        "label": "15",
+        "page": 15,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=16",
+        "label": "16",
+        "page": 16,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=17",
+        "label": "17",
+        "page": 17,
+        "active": false
+      },
+      {
+        "url": "https://cloak.alqudiry-solutions.com/api/v1/products?page=18",
+        "label": "18",
+        "page": 18,
+        "active": true
+      },
+      {
+        "url": null,
+        "label": "التالي &raquo;",
+        "page": null,
+        "active": false
+      }
+    ],
+    "path": "https://cloak.alqudiry-solutions.com/api/v1/products",
+    "per_page": 2,
+    "to": 36,
+    "total": 36
+  },
+  "success": true,
+  "message": "Products retrieved successfully.",
+  "errors": null
+}

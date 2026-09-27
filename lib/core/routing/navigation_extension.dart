@@ -15,11 +15,11 @@ extension AppNavigation on BuildContext {
   Future<T?> pushInTab<T>(String segment, [String? id]) =>
       push<T>('$currentTab/$segment${id == null ? '' : '/$id'}');
 
-  Future<void> openProduct(String productId) =>
-      pushInTab(AppRoutes.productSegment, productId);
+  Future<void> openProduct(String slug) =>
+      pushInTab(AppRoutes.productSegment, slug);
 
-  Future<void> openFamily(String familyId) =>
-      pushInTab(AppRoutes.familySegment, familyId);
+  Future<void> openFamily(String slug) =>
+      pushInTab(AppRoutes.familySegment, slug);
 
   Future<void> openOrder(String orderId) =>
       pushInTab(AppRoutes.orderSegment, orderId);

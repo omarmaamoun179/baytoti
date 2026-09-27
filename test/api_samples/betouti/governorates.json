@@ -1,0 +1,223 @@
+{
+  "data": [
+    {
+      "id": 1,
+      "country_id": 1,
+      "name": "Cairo",
+      "code": "CAI",
+      "status": true,
+      "sort_order": 1
+    },
+    {
+      "id": 2,
+      "country_id": 1,
+      "name": "Giza",
+      "code": "GIZ",
+      "status": true,
+      "sort_order": 2
+    },
+    {
+      "id": 3,
+      "country_id": 1,
+      "name": "Alexandria",
+      "code": "ALX",
+      "status": true,
+      "sort_order": 3
+    },
+    {
+      "id": 4,
+      "country_id": 1,
+      "name": "Qalyubia",
+      "code": "QLY",
+      "status": true,
+      "sort_order": 4
+    },
+    {
+      "id": 5,
+      "country_id": 1,
+      "name": "Dakahlia",
+      "code": "DKH",
+      "status": true,
+      "sort_order": 5
+    },
+    {
+      "id": 6,
+      "country_id": 1,
+      "name": "Sharqia",
+      "code": "SHR",
+      "status": true,
+      "sort_order": 6
+    },
+    {
+      "id": 7,
+      "country_id": 1,
+      "name": "Gharbia",
+      "code": "GHB",
+      "status": true,
+      "sort_order": 7
+    },
+    {
+      "id": 8,
+      "country_id": 1,
+      "name": "Monufia",
+      "code": "MNF",
+      "status": true,
+      "sort_order": 8
+    },
+    {
+      "id": 9,
+      "country_id": 1,
+      "name": "Beheira",
+      "code": "BHR",
+      "status": true,
+      "sort_order": 9
+    },
+    {
+      "id": 10,
+      "country_id": 1,
+      "name": "Kafr El Sheikh",
+      "code": "KFS",
+      "status": true,
+      "sort_order": 10
+    },
+    {
+      "id": 11,
+      "country_id": 1,
+      "name": "Damietta",
+      "code": "DMT",
+      "status": true,
+      "sort_order": 11
+    },
+    {
+      "id": 12,
+      "country_id": 1,
+      "name": "Port Said",
+      "code": "PSD",
+      "status": true,
+      "sort_order": 12
+    },
+    {
+      "id": 13,
+      "country_id": 1,
+      "name": "Ismailia",
+      "code": "ISM",
+      "status": true,
+      "sort_order": 13
+    },
+    {
+      "id": 14,
+      "country_id": 1,
+      "name": "Suez",
+      "code": "SUE",
+      "status": true,
+      "sort_order": 14
+    },
+    {
+      "id": 15,
+      "country_id": 1,
+      "name": "North Sinai",
+      "code": "NSY",
+      "status": true,
+      "sort_order": 15
+    },
+    {
+      "id": 16,
+      "country_id": 1,
+      "name": "South Sinai",
+      "code": "SSY",
+      "status": true,
+      "sort_order": 16
+    },
+    {
+      "id": 17,
+      "country_id": 1,
+      "name": "Faiyum",
+      "code": "FYM",
+      "status": true,
+      "sort_order": 17
+    },
+    {
+      "id": 18,
+      "country_id": 1,
+      "name": "Beni Suef",
+      "code": "BNS",
+      "status": true,
+      "sort_order": 18
+    },
+    {
+      "id": 19,
+      "country_id": 1,
+      "name": "Minya",
+      "code": "MNY",
+      "status": true,
+      "sort_order": 19
+    },
+    {
+      "id": 20,
+      "country_id": 1,
+      "name": "Assiut",
+      "code": "AST",
+      "status": true,
+      "sort_order": 20
+    },
+    {
+      "id": 21,
+      "country_id": 1,
+      "name": "Sohag",
+      "code": "SHG",
+      "status": true,
+      "sort_order": 21
+    },
+    {
+      "id": 22,
+      "country_id": 1,
+      "name": "Qena",
+      "code": "QNA",
+      "status": true,
+      "sort_order": 22
+    },
+    {
+      "id": 23,
+      "country_id": 1,
+      "name": "Luxor",
+      "code": "LXR",
+      "status": true,
+      "sort_order": 23
+    },
+    {
+      "id": 24,
+      "country_id": 1,
+      "name": "Aswan",
+      "code": "ASN",
+      "status": true,
+      "sort_order": 24
+    },
+    {
+      "id": 25,
+      "country_id": 1,
+      "name": "Red Sea",
+      "code": "RSH",
+      "status": true,
+      "sort_order": 25
+    },
+    {
+      "id": 26,
+      "country_id": 1,
+      "name": "New Valley",
+      "code": "WAD",
+      "status": true,
+      "sort_order": 26
+    },
+    {
+      "id": 27,
+      "country_id": 1,
+      "name": "Matrouh",
+      "code": "MTR",
+      "status": true,
+      "sort_order": 27
+    }
+  ],
+  "success": true,
+  "message": "Governorates retrieved successfully.",
+  "errors": null
+}

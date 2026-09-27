@@ -107,16 +107,15 @@ class _ProductView extends StatelessWidget {
               ),
               ProductFamilyRow(
                 family: product.family,
-                avatar: product.familyAvatar,
-                onTap: () => context.openFamily(product.family.id),
+                onTap: () => context.openFamily(product.family.slug),
               ),
               ProductMetaRows(product: product),
               if (product.description.isNotEmpty)
                 _buildDescription(context, product.description)
               else
                 const SizedBox(height: 16),
-              if (product.reviews.isNotEmpty)
-                ProductReviews(reviews: product.reviews),
+              if (state.reviews.isNotEmpty)
+                ProductReviews(reviews: state.reviews),
               const SizedBox(height: 12),
             ],
           ),

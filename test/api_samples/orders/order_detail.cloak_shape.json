@@ -1,0 +1,57 @@
+{
+  "success": true,
+  "message": "Order retrieved successfully.",
+  "data": {
+    "id": 12,
+    "order_number": "ORD-2026-1258",
+    "status": "processing",
+    "financials": {
+      "subtotal": "70.000",
+      "discount": "0.000",
+      "shipping_fee": "2.000",
+      "total": "72.000"
+    },
+    "notes": null,
+    "store": {
+      "id": 1,
+      "name": "مطبخ أم عبدالله",
+      "slug": "mtbkh-am-abdallh-1"
+    },
+    "address": {
+      "id": 3,
+      "label": "Home",
+      "recipient_name": "Lama",
+      "phone": "96555123456",
+      "country": "Kuwait",
+      "city": "Hawalli",
+      "area": "Salmiya",
+      "block": null,
+      "street": "12",
+      "building": "8",
+      "floor": null,
+      "apartment": "3",
+      "additional_directions": null
+    },
+    "items": [
+      {
+        "id": 1,
+        "product_id": 26,
+        "product_name": "مجبوس دجاج",
+        "unit_price": "38.000",
+        "quantity": 1,
+        "total": "38.000"
+      },
+      {
+        "id": 2,
+        "product_id": 27,
+        "product_name": "معمول تمر",
+        "unit_price": "16.000",
+        "quantity": 2,
+        "total": "32.000"
+      }
+    ],
+    "items_count": 2,
+    "created_at": "2026-05-12T10:04:00.000000Z",
+    "updated_at": "2026-05-12T13:30:00.000000Z"
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "data": [
+    {
+      "id": 16,
+      "name": "مطبق سمك",
+      "slug": "mtbk-smk-16",
+      "short_description": "مطبق زبيدي على الطريقة الكويتية.",
+      "price": {
+        "current": "8.000",
+        "original": null
+      },
+      "thumbnail": {
+        "image": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80",
+        "alt_text": "مطبق سمك"
+      },
+      "category": {
+        "id": 1,
+        "name": "الأكل البيتي",
+        "slug": "home-cooked-food"
+      },
+      "store": {
+        "id": 1,
+        "name": "مطبخ أميرة",
+        "slug": "mtbkh-amyr-1"
+      },
+      "is_featured": false
+    }
+  ],
+  "links": {
+    "first": "https://betouti.alqudiry-solutions.com/api/v1/products?page=1",
+    "last": "https://betouti.alqudiry-solutions.com/api/v1/products?page=2",
+    "prev": "https://betouti.alqudiry-solutions.com/api/v1/products?page=1",
+    "next": null
+  },
+  "meta": {
+    "current_page": 2,
+    "from": 21,
+    "last_page": 2,
+    "per_page": 20,
+    "to": 21,
+    "total": 21
+  },
+  "success": true,
+  "message": "",
+  "errors": null
+}

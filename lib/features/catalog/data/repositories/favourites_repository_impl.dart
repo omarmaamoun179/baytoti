@@ -1,6 +1,7 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/domain/failure.dart';
+import '../../domain/entities/product_summary.dart';
 import '../../domain/repositories/favourites_repository.dart';
 import '../datasources/favourites_data_source.dart';
 
@@ -8,6 +9,10 @@ class FavouritesRepositoryImpl implements FavouritesRepository {
   final FavouritesDataSource _dataSource;
 
   FavouritesRepositoryImpl(this._dataSource);
+
+  @override
+  Future<Either<Failure, List<ProductSummary>>> getFavourites() =>
+      _dataSource.getFavourites();
 
   @override
   Future<Either<Failure, bool>> setFavourite(

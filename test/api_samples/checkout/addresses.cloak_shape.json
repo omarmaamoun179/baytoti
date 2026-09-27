@@ -1,0 +1,42 @@
+{
+  "success": true,
+  "message": "Addresses retrieved successfully.",
+  "data": [
+    {
+      "id": 1,
+      "label": "Work",
+      "recipient_name": "Mariam Alkandari",
+      "phone": "+96555123456",
+      "country": "Kuwait",
+      "city": "Capital",
+      "area": "Sharq",
+      "block": "2",
+      "street": "Jaber Al-Mubarak",
+      "building": "14",
+      "floor": "6",
+      "apartment": null,
+      "additional_directions": null,
+      "is_default": false,
+      "created_at": "2026-09-13T18:03:13.000000Z",
+      "updated_at": "2026-09-13T18:03:13.000000Z"
+    },
+    {
+      "id": 2,
+      "label": "Home",
+      "recipient_name": "Mariam Alkandari",
+      "phone": "+96555123456",
+      "country": "Kuwait",
+      "city": "Hawalli",
+      "area": "Salmiya",
+      "block": "4",
+      "street": "12",
+      "building": "8",
+      "floor": null,
+      "apartment": "3",
+      "additional_directions": null,
+      "is_default": true,
+      "created_at": "2026-09-13T18:05:40.000000Z",
+      "updated_at": "2026-09-13T18:05:40.000000Z"
+    }
+  ]
+}

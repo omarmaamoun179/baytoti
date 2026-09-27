@@ -1,146 +1,284 @@
 import 'dart:async';
 
 import 'package:baytoti/core/domain/failure.dart';
-import 'package:baytoti/core/domain/paged.dart';
+import 'package:baytoti/core/exceptions/app_exceptions.dart';
+import 'package:baytoti/core/network/api_endpoints.dart';
 import 'package:baytoti/core/theme/app_palette.dart';
 import 'package:baytoti/core/theme/app_theme.dart';
 import 'package:baytoti/core/utils/screen_util_scope.dart';
-import 'package:baytoti/features/catalog/data/fixtures/fixture_backend.dart';
 import 'package:baytoti/features/notifications/data/datasources/notifications_data_source.dart';
 import 'package:baytoti/features/notifications/data/models/notification_model.dart';
 import 'package:baytoti/features/notifications/data/repositories/notifications_repository_impl.dart';
 import 'package:baytoti/features/notifications/domain/entities/app_notification.dart';
-import 'package:baytoti/features/notifications/domain/repositories/notifications_repository.dart';
 import 'package:baytoti/features/notifications/domain/usecases/notifications_usecases.dart';
 import 'package:baytoti/features/notifications/presentation/cubit/notifications_cubit.dart';
 import 'package:baytoti/features/notifications/presentation/cubit/notifications_state.dart';
 import 'package:baytoti/features/notifications/presentation/widgets/notification_tile.dart';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-typedef _Answer = Future<Either<Failure, NotificationFeed>> Function(
-  NotificationsQuery query,
-);
+import 'support/fake_network.dart';
 
-class _FakeRepository implements NotificationsRepository {
-  _Answer answer;
-  final List<NotificationsQuery> queries = [];
-  int markCalls = 0;
+const String _page1 = 'notifications/page_1.cloak_shape.json';
+const String _page2 = 'notifications/page_2.cloak_shape.json';
+const String _readAll = 'notifications/read_all.cloak_shape.json';
 
-  _FakeRepository(this.answer);
+class _FeedNetwork extends FakeNetwork {
+  final Map<int, (int, Object?)> pages = {};
+  final Map<int, Completer<void>> gates = {};
+  bool offline = false;
+
+  void page(int number, String sample, {int status = 200}) =>
+      pages[number] = (status, apiSample(sample));
 
   @override
-  Future<Either<Failure, NotificationFeed>> getNotifications(
-    NotificationsQuery query,
-  ) {
-    queries.add(query);
-    return answer(query);
+  Future<Response> get(
+    String url, {
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    bool skipAuthRefresh = false,
+  }) async {
+    if (offline) throw const ConnectionException();
+    final number = queryParameters?['page'] as int? ?? 1;
+    final gate = gates[number];
+    if (gate != null) await gate.future;
+    final answer = pages[number];
+    if (answer != null) reply('GET', url, status: answer.$1, body: answer.$2);
+    return super.get(
+      url,
+      queryParameters: queryParameters,
+      headers: headers,
+      skipAuthRefresh: skipAuthRefresh,
+    );
   }
 
   @override
-  Future<Either<Failure, Unit>> markAllRead() async {
-    markCalls++;
-    return const Right(unit);
+  Future<Response> patch(
+    String url, {
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    bool skipAuthRefresh = false,
+  }) async {
+    if (offline) throw const ConnectionException();
+    return super.patch(
+      url,
+      data: data,
+      queryParameters: queryParameters,
+      headers: headers,
+      skipAuthRefresh: skipAuthRefresh,
+    );
   }
+
+  List<FakeCall> of(String method) =>
+      calls.where((call) => call.method == method).toList();
 }
 
-AppNotification _notification(String id, {bool isRead = false}) =>
-    AppNotification(
-      id: id,
-      type: NotificationType.offer,
-      isRead: isRead,
-      title: 'Title $id',
-      body: 'Body $id',
-      createdDisplay: 'now',
-    );
+Map<String, dynamic> _row(Map<String, dynamic> overrides) => {
+      'id': 'ntf-1',
+      'type': 'order_status_changed',
+      'title': 'Title',
+      'body': 'Body',
+      'data': {'entity': null, 'entity_id': null, 'action': null},
+      'read_at': null,
+      'created_at': '2026-09-12T20:15:00.000000Z',
+      ...overrides,
+    };
 
-Either<Failure, NotificationFeed> _feed(
-  List<AppNotification> items, {
-  int lastPage = 1,
-}) =>
-    Right(NotificationFeed(
-      page: Paged<AppNotification>(items: items, lastPage: lastPage),
-      unreadCount: items.where((n) => !n.isRead).length,
-    ));
+Map<String, dynamic> _feed(List<Map<String, dynamic>> rows, {int last = 1}) =>
+    {
+      'success': true,
+      'message': 'Notifications retrieved successfully.',
+      'data': rows,
+      'meta': {'current_page': 1, 'last_page': last, 'per_page': 15},
+      'errors': null,
+    };
 
-const Failure _offline = NetworkFailure(message: 'You are offline.');
-
-NotificationsCubit _cubit(_FakeRepository repository) => NotificationsCubit(
-      GetNotificationsUseCase(repository),
-      MarkNotificationsReadUseCase(repository),
-    );
-
-Future<void> _settle() => Future<void>.delayed(Duration.zero);
+AppNotification _parse(Map<String, dynamic> overrides) =>
+    NotificationModel.fromJson(_row(overrides));
 
 T _right<T>(Either<Failure, T> result) =>
     result.fold((failure) => throw StateError('$failure'), (value) => value);
 
+Failure _left<T>(Either<Failure, T> result) =>
+    result.fold((failure) => failure, (value) => throw StateError('$value'));
+
+Future<void> _settle() => Future<void>.delayed(Duration.zero);
+
 void main() {
-  group('the notifications contract', () {
-    test('the fixture feed parses in both languages', () {
-      final backend = FixtureBackend();
+  late _FeedNetwork network;
+  late NotificationsRepositoryImpl repository;
 
-      for (final lang in ['ar', 'en']) {
-        final feed = NotificationFeedModel.fromJson(backend.notifications(lang));
-        final items = feed.page.items;
+  NotificationsCubit cubit() => NotificationsCubit(
+        GetNotificationsUseCase(repository),
+        MarkNotificationsReadUseCase(repository),
+      );
 
-        expect(items, hasLength(6));
-        expect(feed.unreadCount, 3);
-        expect(feed.page.hasMore, isFalse);
-        expect(items.first.id, 'ntf_6');
-        expect(items.first.type, NotificationType.orderStatus);
-        expect(items.first.isRead, isFalse);
-        expect(
-          items.first.target,
-          const NotificationTarget(
-            kind: NotificationTargetKind.order,
-            id: 'ord_2041',
-          ),
-        );
-        expect(items[1].target?.kind, NotificationTargetKind.family);
-        expect(items[2].target, isNull);
-        expect(items.map((n) => n.type).toSet(), NotificationType.values.toSet());
-        expect(items.every((n) => n.title.isNotEmpty), isTrue);
-        expect(items.every((n) => n.createdDisplay.isNotEmpty), isTrue);
-      }
+  setUp(() {
+    network = _FeedNetwork()
+      ..page(1, _page1)
+      ..page(2, _page2)
+      ..replySample('PATCH', ApiEndPoint.markNotificationsRead, _readAll);
+    repository =
+        NotificationsRepositoryImpl(NotificationsRemoteDataSource(network));
+  });
+
+  group('the feed as cloak sends it', () {
+    test('a page reads its rows and its position from meta', () {
+      final page = NotificationModel.pageFrom(
+        Map<String, dynamic>.from(apiSample(_page1) as Map),
+      );
+
+      expect(page.items.map((n) => n.id), [
+        '9d2f6c1e-0b7a-4e57-9f0e-1b2c3d4e5f60',
+        '3b1a0f7d-5c2e-4d8a-9b6f-7e8d9c0a1b2c',
+        '6e4c2a0b-8f1d-4b3e-a5c7-d9e0f1a2b3c4',
+      ]);
+      expect(page.currentPage, 1);
+      expect(page.lastPage, 2);
+      expect(page.total, 4);
+      expect(page.hasMore, isTrue);
     });
 
-    test('an unknown type or target kind is read leniently', () {
-      final feed = NotificationFeedModel.fromJson({
-        'items': [
-          {
-            'id': 'ntf_99',
-            'type': 'mystery',
-            'is_read': false,
-            'title': 'Hello',
-            'body': 'World',
-            'created_display': 'now',
-            'target': {'kind': 'ticket', 'id': 't_1'},
-          },
-        ],
-        'meta': {'current_page': 1, 'last_page': 2},
+    test('an order row is unread, typed and opens its order by id', () {
+      final page = NotificationModel.pageFrom(
+        Map<String, dynamic>.from(apiSample(_page1) as Map),
+      );
+      final order = page.items.first;
+
+      expect(order.isRead, isFalse);
+      expect(order.type, NotificationType.orderStatus);
+      expect(order.headline, 'Your order has shipped');
+      expect(order.detail, 'Order #ORD-2026-1258 is on its way.');
+      expect(order.createdAt, DateTime.utc(2026, 9, 12, 20, 15));
+      expect(
+        order.target,
+        const NotificationTarget(
+          kind: NotificationTargetKind.order,
+          handle: '42',
+        ),
+      );
+    });
+
+    test('a product row carrying only an id cannot be opened', () {
+      final page = NotificationModel.pageFrom(
+        Map<String, dynamic>.from(apiSample(_page1) as Map),
+      );
+
+      expect(page.items[1].type, NotificationType.familyUpdate);
+      expect(page.items[1].target, isNull);
+    });
+
+    test('a row with no title leads with its body and is read', () {
+      final page = NotificationModel.pageFrom(
+        Map<String, dynamic>.from(apiSample(_page1) as Map),
+      );
+      final coupon = page.items[2];
+
+      expect(coupon.type, NotificationType.offer);
+      expect(coupon.title, isNull);
+      expect(coupon.headline, 'Use BAYT10 for 10% off your next order.');
+      expect(coupon.detail, isNull);
+      expect(coupon.isRead, isTrue);
+      expect(coupon.readAt, DateTime.utc(2026, 9, 10, 12));
+      expect(coupon.target, isNull);
+    });
+
+    test('a product or store with a slug opens by that slug', () {
+      expect(
+        _parse({
+          'data': {'entity': 'store', 'entity_id': 3, 'slug': 'umm-ali'},
+        }).target,
+        const NotificationTarget(
+          kind: NotificationTargetKind.family,
+          handle: 'umm-ali',
+        ),
+      );
+      expect(
+        _parse({
+          'data': {'entity': 'product', 'entity_id': 9, 'slug': 'kunafa'},
+        }).target,
+        const NotificationTarget(
+          kind: NotificationTargetKind.product,
+          handle: 'kunafa',
+        ),
+      );
+    });
+
+    test('odd values are read leniently', () {
+      final odd = _parse({
+        'id': 7,
+        'type': 'App\\Notifications\\Mystery',
+        'title': '   ',
+        'body': null,
+        'data': const [],
+        'read_at': 'not a date',
+        'created_at': null,
       });
 
-      final item = feed.page.items.single;
-      expect(item.type, isNull);
-      expect(item.target, isNull);
-      expect(feed.unreadCount, 1);
-      expect(feed.page.currentPage, 1);
-      expect(feed.page.hasMore, isTrue);
+      expect(odd.id, '7');
+      expect(odd.type, isNull);
+      expect(odd.headline, isNull);
+      expect(odd.isRead, isFalse);
+      expect(odd.createdAt, isNull);
+      expect(odd.target, isNull);
+    });
+
+    test('a title kept inside data is still shown', () {
+      final nested = _parse({
+        'title': null,
+        'body': null,
+        'data': {'title': 'Inside', 'body': 'data'},
+      });
+
+      expect(nested.headline, 'Inside');
+      expect(nested.detail, 'data');
+    });
+
+    test('a row without an id is dropped, and a bare page is one page', () {
+      final page = NotificationModel.pageFrom({
+        'data': [
+          _row({'id': null}),
+          _row({'id': ''}),
+          _row({'id': 'kept'}),
+          'not a row',
+        ],
+      });
+
+      expect(page.items.map((n) => n.id), ['kept']);
+      expect(page.hasMore, isFalse);
+    });
+
+    test('the type follows the server words, most specific first', () {
+      NotificationType? typeOf(String type, [String? action]) =>
+          NotificationType.classify([type, action]);
+
+      expect(
+        typeOf('review_requested', 'order'),
+        NotificationType.ratingRequest,
+      );
+      expect(typeOf('order_delivered'), NotificationType.orderStatus);
+      expect(typeOf('exhibition_opening'), NotificationType.exhibition);
+      expect(typeOf('support_reply'), NotificationType.support);
+      expect(typeOf('store_new_dish'), NotificationType.familyUpdate);
+      expect(typeOf('promo'), NotificationType.offer);
+      expect(typeOf('something_else'), isNull);
+      expect(NotificationType.classify(const [null]), isNull);
     });
 
     test('each type has its own tag key', () {
       expect(
-        NotificationType.values.map((type) => type.tagKey),
-        [
+        NotificationType.values.map((type) => type.tagKey).toSet(),
+        {
           'notification_tag_order_status',
           'notification_tag_offer',
           'notification_tag_exhibition',
           'notification_tag_family_update',
           'notification_tag_rating_request',
           'notification_tag_support',
-        ],
+        },
       );
     });
 
@@ -153,173 +291,248 @@ void main() {
     });
   });
 
-  group('the fixture source through the repository', () {
-    test('marking all read is what the next read reports', () async {
-      final repository = NotificationsRepositoryImpl(
-        NotificationsMockDataSource(FixtureBackend(), () async => 'en'),
-      );
-
+  group('the remote source through the repository', () {
+    test('the feed is a GET on notifications with the page asked for',
+        () async {
       final first = _right(
         await repository.getNotifications(const NotificationsQuery()),
       );
-      expect(first.unreadCount, 3);
-      expect(first.page.items.first.title, 'Order BT-2041 is being prepared');
+      final second = _right(
+        await repository.getNotifications(const NotificationsQuery(page: 2)),
+      );
 
+      expect(network.of('GET').map((c) => c.url), [
+        ApiEndPoint.notifications,
+        ApiEndPoint.notifications,
+      ]);
+      expect(network.of('GET').first.query, isEmpty);
+      expect(network.of('GET').last.query, {'page': 2});
+      expect(first.items, hasLength(3));
+      expect(second.items.single.type, NotificationType.ratingRequest);
+      expect(second.hasMore, isFalse);
+    });
+
+    test('marking all read is a PATCH on read-all, never a POST', () async {
       expect(await repository.markAllRead(), const Right<Failure, Unit>(unit));
 
-      final second = _right(
+      expect(network.last('PATCH').url, ApiEndPoint.markNotificationsRead);
+      expect(network.of('POST'), isEmpty);
+      expect(network.of('DELETE'), isEmpty);
+    });
+
+    test('a 401 is a server failure carrying its status', () async {
+      network.page(1, 'betouti/unauthenticated_401.json', status: 401);
+
+      final failure = _left(
         await repository.getNotifications(const NotificationsQuery()),
       );
-      expect(second.unreadCount, 0);
-      expect(second.page.items.every((n) => n.isRead), isTrue);
+
+      expect(failure, isA<ServerFailure>());
+      expect(failure.statusCode, 401);
+    });
+
+    test('a server crash never shows its exception text', () async {
+      network.page(1, 'betouti/products_guest_500.json', status: 500);
+
+      final failure = _left(
+        await repository.getNotifications(const NotificationsQuery()),
+      );
+
+      expect(failure, isA<ServerFailure>());
+      expect(failure.statusCode, 500);
+      expect(failure.message, isNot(contains('LocationContextService')));
+    });
+
+    test('a refused read-all is a failure', () async {
+      network.replySample(
+        'PATCH',
+        ApiEndPoint.markNotificationsRead,
+        'betouti/unauthenticated_401.json',
+        status: 401,
+      );
+
+      expect(_left(await repository.markAllRead()).statusCode, 401);
+    });
+
+    test('offline is a network failure for both calls', () async {
+      network.offline = true;
+
+      expect(
+        _left(await repository.getNotifications(const NotificationsQuery())),
+        isA<NetworkFailure>(),
+      );
+      expect(_left(await repository.markAllRead()), isA<NetworkFailure>());
     });
   });
 
   group('NotificationsCubit', () {
     test('a first page loads, then everything is marked read', () async {
-      final repository = _FakeRepository(
-        (_) async => _feed([_notification('a'), _notification('b')]),
-      );
-      final cubit = _cubit(repository);
+      final notifications = cubit();
       final states = <NotificationsState>[];
-      final sub = cubit.stream.listen(states.add);
+      final sub = notifications.stream.listen(states.add);
 
-      await cubit.load();
+      await notifications.load();
       await _settle();
 
       expect(states.map((s) => s.status), [
         NotificationsStatus.loading,
         NotificationsStatus.loaded,
       ]);
-      expect(cubit.state.notifications.map((n) => n.id), ['a', 'b']);
-      expect(cubit.state.notifications.first.isRead, isFalse);
-      expect(repository.markCalls, 1);
-      expect(repository.queries.single.page, isNull);
+      expect(notifications.state.notifications, hasLength(3));
+      expect(notifications.state.notifications.first.isRead, isFalse);
+      expect(network.of('PATCH').single.url, ApiEndPoint.markNotificationsRead);
 
       await sub.cancel();
-      await cubit.close();
+      await notifications.close();
     });
 
     test('nothing is marked read when nothing is unread', () async {
-      final repository = _FakeRepository(
-        (_) async => _feed([_notification('a', isRead: true)]),
+      network.pages[1] = (
+        200,
+        _feed([
+          _row({'read_at': '2026-09-12T21:00:00.000000Z'}),
+        ]),
       );
-      final cubit = _cubit(repository);
+      final notifications = cubit();
 
-      await cubit.load();
+      await notifications.load();
       await _settle();
 
-      expect(repository.markCalls, 0);
-      await cubit.close();
+      expect(notifications.state.notifications.single.isRead, isTrue);
+      expect(network.of('PATCH'), isEmpty);
+      await notifications.close();
+    });
+
+    test('a refused read-all leaves the list as it was', () async {
+      network.replySample(
+        'PATCH',
+        ApiEndPoint.markNotificationsRead,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+      final notifications = cubit();
+
+      await notifications.load();
+      await _settle();
+
+      expect(notifications.state.isLoaded, isTrue);
+      expect(notifications.state.notifications, hasLength(3));
+      await notifications.close();
     });
 
     test('a failed first read is an error screen', () async {
-      final repository = _FakeRepository((_) async => const Left(_offline));
-      final cubit = _cubit(repository);
+      network.page(1, 'betouti/unauthenticated_401.json', status: 401);
+      final notifications = cubit();
 
-      await cubit.load();
+      await notifications.load();
 
-      expect(cubit.state.status, NotificationsStatus.error);
-      expect(cubit.state.errorMessage, 'You are offline.');
-      expect(repository.markCalls, 0);
-      await cubit.close();
+      expect(notifications.state.status, NotificationsStatus.error);
+      expect(notifications.state.errorMessage, 'Unauthenticated.');
+      expect(network.of('PATCH'), isEmpty);
+      await notifications.close();
     });
 
     test('a failed refresh keeps the list', () async {
-      final repository = _FakeRepository(
-        (_) async => _feed([_notification('a')]),
-      );
-      final cubit = _cubit(repository);
-      await cubit.load();
+      final notifications = cubit();
+      await notifications.load();
 
-      repository.answer = (_) async => const Left(_offline);
-      await cubit.load();
+      network.offline = true;
+      await notifications.load();
 
-      expect(cubit.state.status, NotificationsStatus.loaded);
-      expect(cubit.state.notifications, hasLength(1));
-      expect(cubit.state.errorMessage, 'You are offline.');
-      await cubit.close();
+      expect(notifications.state.status, NotificationsStatus.loaded);
+      expect(notifications.state.notifications, hasLength(3));
+      expect(notifications.state.errorMessage, 'connection_failed');
+      await notifications.close();
     });
 
     test('two loads at once send one request', () async {
-      final gate = Completer<Either<Failure, NotificationFeed>>();
-      final repository = _FakeRepository((_) => gate.future);
-      final cubit = _cubit(repository);
+      final notifications = cubit();
 
-      final first = cubit.load();
-      final second = cubit.load();
-      gate.complete(_feed([_notification('a')]));
-      await Future.wait([first, second]);
+      await Future.wait([notifications.load(), notifications.load()]);
 
-      expect(repository.queries, hasLength(1));
-      expect(cubit.state.isLoaded, isTrue);
-      await cubit.close();
+      expect(network.of('GET'), hasLength(1));
+      expect(notifications.state.isLoaded, isTrue);
+      await notifications.close();
     });
 
     test('the next page is read by page number and appended', () async {
-      final repository = _FakeRepository(
-        (query) async => query.page == null
-            ? _feed([_notification('a')], lastPage: 2)
-            : _feed([_notification('b', isRead: true)]),
+      final notifications = cubit();
+      await notifications.load();
+
+      await notifications.loadMore();
+
+      expect(network.of('GET').last.query, {'page': 2});
+      expect(notifications.state.notifications, hasLength(4));
+      expect(
+        notifications.state.notifications.last.id,
+        '0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d',
       );
-      final cubit = _cubit(repository);
-      await cubit.load();
+      expect(notifications.state.page.hasMore, isFalse);
+      expect(notifications.state.isLoadingMore, isFalse);
 
-      await cubit.loadMore();
-
-      expect(repository.queries.last.page, 2);
-      expect(cubit.state.notifications.map((n) => n.id), ['a', 'b']);
-      expect(cubit.state.page.hasMore, isFalse);
-      expect(cubit.state.isLoadingMore, isFalse);
-
-      await cubit.loadMore();
-      expect(repository.queries, hasLength(2));
-      await cubit.close();
+      await notifications.loadMore();
+      expect(network.of('GET'), hasLength(2));
+      await notifications.close();
     });
 
     test('a failed next page keeps the list', () async {
-      final repository = _FakeRepository(
-        (query) async => query.page == null
-            ? _feed([_notification('a')], lastPage: 2)
-            : const Left(_offline),
-      );
-      final cubit = _cubit(repository);
-      await cubit.load();
+      network.page(2, 'betouti/products_guest_500.json', status: 500);
+      final notifications = cubit();
+      await notifications.load();
 
-      await cubit.loadMore();
+      await notifications.loadMore();
 
-      expect(cubit.state.status, NotificationsStatus.loaded);
-      expect(cubit.state.notifications.map((n) => n.id), ['a']);
-      expect(cubit.state.page.lastPage, 2);
-      expect(cubit.state.isLoadingMore, isFalse);
-      expect(cubit.state.errorMessage, 'You are offline.');
-      await cubit.close();
+      expect(notifications.state.status, NotificationsStatus.loaded);
+      expect(notifications.state.notifications, hasLength(3));
+      expect(notifications.state.page.lastPage, 2);
+      expect(notifications.state.isLoadingMore, isFalse);
+      expect(notifications.state.errorMessage, 'server_error');
+      await notifications.close();
     });
 
     test('a page that lands after a refresh is dropped', () async {
-      final nextPage = Completer<Either<Failure, NotificationFeed>>();
-      var refreshed = false;
-      final repository = _FakeRepository((query) async {
-        if (query.page != null) return nextPage.future;
-        return refreshed
-            ? _feed([_notification('fresh')], lastPage: 3)
-            : _feed([_notification('a')], lastPage: 2);
-      });
-      final cubit = _cubit(repository);
-      await cubit.load();
+      final notifications = cubit();
+      await notifications.load();
 
-      final more = cubit.loadMore();
-      refreshed = true;
-      await cubit.load();
-      nextPage.complete(_feed([_notification('stale')]));
+      final gate = network.gates[2] = Completer<void>();
+      final more = notifications.loadMore();
+      network.pages[1] = (200, _feed([_row({'id': 'fresh'})], last: 3));
+      await notifications.load();
+      gate.complete();
       await more;
 
-      expect(cubit.state.notifications.map((n) => n.id), ['fresh']);
-      expect(cubit.state.page.lastPage, 3);
-      expect(cubit.state.isLoadingMore, isFalse);
-      await cubit.close();
+      expect(notifications.state.notifications.map((n) => n.id), ['fresh']);
+      expect(notifications.state.page.lastPage, 3);
+      expect(notifications.state.isLoadingMore, isFalse);
+      await notifications.close();
     });
   });
+
+  group('the time a row prints', () {
+    final now = DateTime(2026, 9, 27, 18);
+
+    test('today is the clock time', () {
+      expect(
+        notificationTimeLabel(DateTime(2026, 9, 27, 9, 5), now: now),
+        '09:05',
+      );
+    });
+
+    test('earlier this year is day and month', () {
+      expect(
+        notificationTimeLabel(DateTime(2026, 9, 12, 20, 15), now: now),
+        '12/9',
+      );
+    });
+
+    test('another year adds the year', () {
+      expect(
+        notificationTimeLabel(DateTime(2025, 12, 30, 17, 45), now: now),
+        '30/12/2025',
+      );
+    });
+  });
+
   group('NotificationTile', () {
     Future<void> pumpTile(
       WidgetTester tester,
@@ -356,29 +569,34 @@ void main() {
       var opened = 0;
       await pumpTile(
         tester,
-        const AppNotification(
-          id: 'ntf_6',
+        AppNotification(
+          id: 'ntf-1',
           type: NotificationType.orderStatus,
-          isRead: false,
-          title: 'Order BT-2041 is being prepared',
-          body: 'Umm Abdullah Family started preparing your order.',
-          createdDisplay: 'now',
+          title: 'Your order has shipped',
+          body: 'Order #ORD-2026-1258 is on its way.',
+          createdAt: DateTime(2025, 12, 30, 17, 45),
         ),
         onTap: () => opened++,
       );
 
       expect(tintOf(tester), AppPalette.light.accent100);
       expect(find.text('notification_tag_order_status'), findsOneWidget);
-      expect(find.text('now'), findsOneWidget);
+      expect(find.text('Your order has shipped'), findsOneWidget);
+      expect(find.text('Order #ORD-2026-1258 is on its way.'), findsOneWidget);
+      expect(find.text('30/12/2025'), findsOneWidget);
 
       await tester.tap(find.byType(NotificationTile));
       expect(opened, 1);
     });
 
-    testWidgets('a read row is not tinted', (tester) async {
-      await pumpTile(tester, _notification('ntf_1', isRead: true));
+    testWidgets('a read row with nothing to say is not tinted', (tester) async {
+      await pumpTile(
+        tester,
+        AppNotification(id: 'ntf-2', readAt: DateTime.utc(2026, 9, 1)),
+      );
 
       expect(tintOf(tester), Colors.transparent);
+      expect(find.byType(Text), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   });

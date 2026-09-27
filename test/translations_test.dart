@@ -16,7 +16,6 @@ const List<String> errorMessageKeys = [
   'home_failed',
   'cart_failed',
   'cart_update_failed',
-  'coupon_failed',
   'favourite_failed',
   'notifications_failed',
   'profile_failed',
@@ -26,12 +25,13 @@ const List<String> errorMessageKeys = [
   'product_not_found',
   'family_failed',
   'family_not_found',
-  'follow_failed',
   'checkout_failed',
   'order_place_failed',
   'order_failed',
   'order_not_found',
-  'rating_failed',
+  'location_failed',
+  'addresses_failed',
+  'address_not_found',
 ];
 
 Map<String, dynamic> _load(String locale) =>

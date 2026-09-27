@@ -5,7 +5,6 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
 import '../../../../core/widgets/network_photo.dart';
 import '../../domain/entities/family_profile.dart';
-import 'follow_button.dart';
 
 class FamilyHeader extends StatelessWidget {
   static const double coverHeight = 128;
@@ -13,9 +12,8 @@ class FamilyHeader extends StatelessWidget {
   static const double avatarLift = 38;
 
   final FamilyProfile family;
-  final VoidCallback onFollow;
 
-  const FamilyHeader({super.key, required this.family, required this.onFollow});
+  const FamilyHeader({super.key, required this.family});
 
   @override
   Widget build(BuildContext context) {
@@ -63,11 +61,6 @@ class FamilyHeader extends StatelessWidget {
                         ],
                       ],
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  FollowButton(
-                    following: family.isFollowing,
-                    onTap: onFollow,
                   ),
                 ],
               ),

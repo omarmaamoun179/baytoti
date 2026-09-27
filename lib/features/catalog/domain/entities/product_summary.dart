@@ -7,6 +7,7 @@ import 'product_badge.dart';
 
 class ProductSummary extends Equatable {
   final String id;
+  final String slug;
   final String name;
   final FamilyRef family;
   final Money price;
@@ -19,6 +20,7 @@ class ProductSummary extends Equatable {
 
   const ProductSummary({
     required this.id,
+    String? slug,
     required this.name,
     required this.family,
     required this.price,
@@ -28,10 +30,11 @@ class ProductSummary extends Equatable {
     this.inStock = true,
     this.images = const [],
     this.isFavourite = false,
-  });
+  }) : slug = slug ?? id;
 
   ProductSummary copyWith({bool? isFavourite}) => ProductSummary(
         id: id,
+        slug: slug,
         name: name,
         family: family,
         price: price,
@@ -46,6 +49,7 @@ class ProductSummary extends Equatable {
   @override
   List<Object?> get props => [
         id,
+        slug,
         name,
         family,
         price,

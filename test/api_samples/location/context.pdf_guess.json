@@ -1,0 +1,25 @@
+{
+  "success": true,
+  "message": "Location context retrieved successfully.",
+  "data": {
+    "mode": "manual",
+    "selected_country_id": 1,
+    "selected_governorate_id": 3,
+    "resolved_country_id": null,
+    "resolved_governorate_id": null,
+    "latitude": null,
+    "longitude": null,
+    "selected_country": {
+      "id": 1,
+      "name": "Egypt",
+      "code": "EG"
+    },
+    "selected_governorate": {
+      "id": 3,
+      "country_id": 1,
+      "name": "Alexandria",
+      "code": "ALX"
+    }
+  },
+  "errors": null
+}

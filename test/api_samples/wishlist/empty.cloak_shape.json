@@ -1,0 +1,10 @@
+{
+  "data": {
+    "id": 1,
+    "items_count": 0,
+    "items": []
+  },
+  "success": true,
+  "message": "Wishlist retrieved successfully.",
+  "errors": ""
+}

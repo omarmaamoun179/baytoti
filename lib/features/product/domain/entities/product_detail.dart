@@ -30,14 +30,12 @@ class Review extends Equatable {
   final String authorName;
   final int rating;
   final String body;
-  final String createdDisplay;
 
   const Review({
     required this.id,
     required this.authorName,
     required this.rating,
     required this.body,
-    this.createdDisplay = '',
   });
 
   String get stars {
@@ -46,98 +44,96 @@ class Review extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, authorName, rating, body, createdDisplay];
+  List<Object?> get props => [id, authorName, rating, body];
 }
 
 class ProductDetail extends Equatable {
+  static const int quantityCeiling = 99;
+
   final String id;
+  final String slug;
   final String name;
   final String description;
   final Money price;
   final Money? compareAt;
   final ProductBadge? badge;
   final double? rating;
-  final int ratingCount;
-  final int soldCount;
-  final int stock;
+  final int? soldCount;
+  final int? stock;
   final bool inStock;
-  final String preparationTime;
+  final int? preparationMinutes;
   final Set<Fulfilment> fulfilment;
-  final int maxPerOrder;
+  final int? maxPerOrder;
   final List<ImageRef> images;
   final FamilyRef family;
-  final ImageRef? familyAvatar;
   final bool isFavourite;
-  final List<Review> reviews;
 
   const ProductDetail({
     required this.id,
+    String? slug,
     required this.name,
     this.description = '',
     required this.price,
     this.compareAt,
     this.badge,
     this.rating,
-    this.ratingCount = 0,
-    this.soldCount = 0,
-    required this.stock,
-    required this.inStock,
-    this.preparationTime = '',
+    this.soldCount,
+    this.stock,
+    this.inStock = true,
+    this.preparationMinutes,
     this.fulfilment = const {},
-    required this.maxPerOrder,
+    this.maxPerOrder,
     this.images = const [],
     required this.family,
-    this.familyAvatar,
     this.isFavourite = false,
-    this.reviews = const [],
-  });
+  }) : slug = slug ?? id;
 
-  int get maxQuantity => inStock ? math.max(0, math.min(maxPerOrder, stock)) : 0;
+  int get maxQuantity {
+    if (!inStock) return 0;
+    final limits = [?stock, ?maxPerOrder, quantityCeiling];
+    return math.max(0, limits.reduce(math.min));
+  }
 
   bool get canOrder => maxQuantity > 0;
 
   ProductDetail copyWith({bool? isFavourite}) => ProductDetail(
         id: id,
+        slug: slug,
         name: name,
         description: description,
         price: price,
         compareAt: compareAt,
         badge: badge,
         rating: rating,
-        ratingCount: ratingCount,
         soldCount: soldCount,
         stock: stock,
         inStock: inStock,
-        preparationTime: preparationTime,
+        preparationMinutes: preparationMinutes,
         fulfilment: fulfilment,
         maxPerOrder: maxPerOrder,
         images: images,
         family: family,
-        familyAvatar: familyAvatar,
         isFavourite: isFavourite ?? this.isFavourite,
-        reviews: reviews,
       );
 
   @override
   List<Object?> get props => [
         id,
+        slug,
         name,
         description,
         price,
         compareAt,
         badge,
         rating,
-        ratingCount,
         soldCount,
         stock,
         inStock,
-        preparationTime,
+        preparationMinutes,
         fulfilment,
         maxPerOrder,
         images,
         family,
-        familyAvatar,
         isFavourite,
-        reviews,
       ];
 }

@@ -307,7 +307,7 @@ class NetworkServiceImpl implements NetworkService {
       'Accept': 'application/json',
       'x-app-version': await _util.getAppVersion(),
       'x-platform-type': _util.getPlatformType(),
-      'Accept-Language': '$languageCode-KW',
+      'Accept-Language': languageCode,
     };
   }
 

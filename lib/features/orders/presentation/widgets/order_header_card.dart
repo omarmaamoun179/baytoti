@@ -7,14 +7,14 @@ import '../../../../core/widgets/section_label.dart';
 
 class OrderHeaderCard extends StatelessWidget {
   final String reference;
-  final String? eta;
+  final String? subtitle;
 
-  const OrderHeaderCard({super.key, required this.reference, this.eta});
+  const OrderHeaderCard({super.key, required this.reference, this.subtitle});
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final eta = this.eta;
+    final subtitle = this.subtitle;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(16, 14, 16, 2),
@@ -34,10 +34,10 @@ class OrderHeaderCard extends StatelessWidget {
           ),
           const SizedBox(height: 7),
           Text(reference, style: AppStrings.w800(22, 1.2).c(p.onAccent)),
-          if (eta != null && eta.isNotEmpty) ...[
+          if (subtitle != null && subtitle.isNotEmpty) ...[
             const SizedBox(height: 6),
             Text(
-              eta,
+              subtitle,
               style: AppStrings.w400(12, 1.5)
                   .c(p.onAccent.withValues(alpha: .8)),
             ),

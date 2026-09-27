@@ -1,0 +1,22 @@
+{
+  "success": true,
+  "message": "Address created successfully.",
+  "data": {
+    "id": 3,
+    "label": "Mother's house",
+    "recipient_name": "Mariam Alkandari",
+    "phone": "+96555123456",
+    "country": "Kuwait",
+    "city": "Al Ahmadi",
+    "area": "Fintas",
+    "block": null,
+    "street": "30",
+    "building": null,
+    "floor": null,
+    "apartment": null,
+    "additional_directions": "Blue gate",
+    "is_default": false,
+    "created_at": "2026-09-14T09:12:02.000000Z",
+    "updated_at": "2026-09-14T09:12:02.000000Z"
+  }
+}

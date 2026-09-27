@@ -1,19 +1,20 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/domain/failure.dart';
+import '../../../../core/domain/paged.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_response.dart';
 import '../../../../core/network/guarded_request.dart';
 import '../../../../core/services/network_service.dart';
-import '../../../../core/services/type_def.dart';
-import '../../../catalog/data/fixtures/fixture_backend.dart';
-import '../../domain/entities/explore_feed.dart';
-import '../models/explore_model.dart';
+import '../../../../core/utils/constants.dart';
+import '../../../catalog/data/models/catalog_models.dart';
+import '../../../catalog/domain/entities/product_summary.dart';
+import '../../domain/entities/explore_tab.dart';
 
 abstract class ExploreDataSource {
-  Future<Either<Failure, ExploreFeedModel>> getExplore(
+  Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     ExploreTab tab, {
-    int? page,
+    int page = 1,
   });
 }
 
@@ -22,42 +23,26 @@ class ExploreRemoteDataSource implements ExploreDataSource {
 
   ExploreRemoteDataSource(this._network);
 
+  static Map<String, dynamic> _queryFor(ExploreTab tab, int page) => {
+        'sort': ?tab.sort,
+        if (tab.featuredOnly) 'featured': 1,
+        'page': page,
+        'per_page': defaultPageSize,
+      };
+
   @override
-  Future<Either<Failure, ExploreFeedModel>> getExplore(
+  Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     ExploreTab tab, {
-    int? page,
+    int page = 1,
   }) =>
       guardedRequest(
-        'ExploreRemoteDataSource.getExplore',
+        'ExploreRemoteDataSource.getProducts',
         () async {
           final response = await _network.get(
-            ApiEndPoint.explore,
-            queryParameters: {'tab': tab.wire, 'page': ?page},
+            ApiEndPoint.products,
+            queryParameters: _queryFor(tab, page),
           );
-          return ExploreFeedModel.fromJson(checkedResponse(response).json);
-        },
-        fallbackMessage: 'explore_failed',
-      );
-}
-
-class ExploreMockDataSource implements ExploreDataSource {
-  final FixtureBackend _backend;
-  final ContentLanguage _language;
-
-  ExploreMockDataSource(this._backend, this._language);
-
-  @override
-  Future<Either<Failure, ExploreFeedModel>> getExplore(
-    ExploreTab tab, {
-    int? page,
-  }) =>
-      guardedRequest(
-        'ExploreMockDataSource.getExplore',
-        () async {
-          await _backend.wait();
-          return ExploreFeedModel.fromJson(
-            _backend.explore(tab.wire, await _language()),
-          );
+          return ProductSummaryModel.pageFrom(checkedResponse(response).json);
         },
         fallbackMessage: 'explore_failed',
       );

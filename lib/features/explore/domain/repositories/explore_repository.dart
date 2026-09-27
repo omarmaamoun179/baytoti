@@ -1,11 +1,13 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/domain/failure.dart';
-import '../entities/explore_feed.dart';
+import '../../../../core/domain/paged.dart';
+import '../../../catalog/domain/entities/product_summary.dart';
+import '../entities/explore_tab.dart';
 
 abstract class ExploreRepository {
-  Future<Either<Failure, ExploreFeed>> getExplore(
+  Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     ExploreTab tab, {
-    int? page,
+    int page = 1,
   });
 }

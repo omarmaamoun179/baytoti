@@ -1,16 +1,9 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/constants.dart';
+
 enum SearchSort {
-  relevance(
-    'relevance',
-    'search_sort_relevance',
-    'search_sort_option_relevance',
-  ),
-  topRated(
-    'top_rated',
-    'search_sort_top_rated',
-    'search_sort_option_top_rated',
-  ),
+  newest('newest', 'search_sort_newest', 'search_sort_option_newest'),
   priceAsc(
     'price_asc',
     'search_sort_price_asc',
@@ -20,8 +13,7 @@ enum SearchSort {
     'price_desc',
     'search_sort_price_desc',
     'search_sort_option_price_desc',
-  ),
-  newest('newest', 'search_sort_newest', 'search_sort_option_newest');
+  );
 
   final String wire;
   final String labelKey;
@@ -29,7 +21,7 @@ enum SearchSort {
 
   const SearchSort(this.wire, this.labelKey, this.optionKey);
 
-  static const SearchSort initial = topRated;
+  static const SearchSort initial = newest;
 
   static const List<SearchSort> byPrice = [priceAsc, priceDesc];
 
@@ -37,53 +29,31 @@ enum SearchSort {
 }
 
 class SearchQuery extends Equatable {
-  static const double highRating = 4.5;
-
   final String text;
-  final String? categoryId;
-  final String? city;
-  final int? minPriceFils;
-  final int? maxPriceFils;
-  final double? minRating;
+  final String? categorySlug;
   final SearchSort sort;
   final int? page;
-  final int? limit;
+  final int limit;
 
   const SearchQuery({
     this.text = '',
-    this.categoryId,
-    this.city,
-    this.minPriceFils,
-    this.maxPriceFils,
-    this.minRating,
+    this.categorySlug,
     this.sort = SearchSort.initial,
     this.page,
-    this.limit,
+    this.limit = defaultPageSize,
   });
 
-  bool get hasFilters =>
-      categoryId != null ||
-      city != null ||
-      minPriceFils != null ||
-      maxPriceFils != null ||
-      minRating != null ||
-      sort.isByPrice;
+  bool get hasFilters => categorySlug != null || sort.isByPrice;
 
   SearchQuery _with({
     String? text,
-    String? Function()? categoryId,
-    String? Function()? city,
-    double? Function()? minRating,
+    String? Function()? categorySlug,
     SearchSort? sort,
     int? Function()? page,
   }) =>
       SearchQuery(
         text: text ?? this.text,
-        categoryId: categoryId == null ? this.categoryId : categoryId(),
-        city: city == null ? this.city : city(),
-        minPriceFils: minPriceFils,
-        maxPriceFils: maxPriceFils,
-        minRating: minRating == null ? this.minRating : minRating(),
+        categorySlug: categorySlug == null ? this.categorySlug : categorySlug(),
         sort: sort ?? this.sort,
         page: page == null ? this.page : page(),
         limit: limit,
@@ -91,11 +61,11 @@ class SearchQuery extends Equatable {
 
   SearchQuery withText(String value) => _with(text: value.trim());
 
-  SearchQuery withCategory(String? value) => _with(categoryId: () => value);
-
-  SearchQuery withCity(String? value) => _with(city: () => value);
-
-  SearchQuery withMinRating(double? value) => _with(minRating: () => value);
+  SearchQuery withCategory(String? slug) => _with(
+        categorySlug: () => slug == null || slug.trim().isEmpty
+            ? null
+            : slug.trim(),
+      );
 
   SearchQuery withSort(SearchSort value) => _with(sort: value);
 
@@ -108,27 +78,13 @@ class SearchQuery extends Equatable {
       );
 
   Map<String, dynamic> toQueryParameters() => {
-        if (text.isNotEmpty) 'q': text,
-        'category_id': ?categoryId,
-        'city': ?city,
-        'min_price_fils': ?minPriceFils,
-        'max_price_fils': ?maxPriceFils,
-        'min_rating': ?minRating,
+        if (text.isNotEmpty) 'search': text,
+        'category': ?categorySlug,
         'sort': sort.wire,
         'page': ?page,
-        'limit': ?limit,
+        'per_page': limit,
       };
 
   @override
-  List<Object?> get props => [
-        text,
-        categoryId,
-        city,
-        minPriceFils,
-        maxPriceFils,
-        minRating,
-        sort,
-        page,
-        limit,
-      ];
+  List<Object?> get props => [text, categorySlug, sort, page, limit];
 }

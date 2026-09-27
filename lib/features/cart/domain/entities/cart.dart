@@ -6,6 +6,8 @@ import '../../../catalog/domain/entities/image_ref.dart';
 import '../../../catalog/domain/entities/order_totals.dart';
 
 class CartItem extends Equatable {
+  static const int defaultMaxQuantity = 99;
+
   final String id;
   final String productId;
   final String name;
@@ -20,12 +22,12 @@ class CartItem extends Equatable {
     required this.id,
     required this.productId,
     required this.name,
-    required this.family,
+    this.family = const FamilyRef(id: '', name: ''),
     this.image,
     required this.unitPrice,
     required this.quantity,
     required this.lineTotal,
-    required this.maxQuantity,
+    this.maxQuantity = defaultMaxQuantity,
   });
 
   bool get canIncrement => quantity < maxQuantity;
@@ -46,33 +48,16 @@ class CartItem extends Equatable {
       ];
 }
 
-class CartCoupon extends Equatable {
-  final String code;
-  final int discountFils;
-
-  const CartCoupon({required this.code, required this.discountFils});
-
-  @override
-  List<Object?> get props => [code, discountFils];
-}
-
 class Cart extends Equatable {
-  final String id;
   final List<CartItem> items;
-  final CartCoupon? coupon;
   final OrderTotals totals;
-  final int itemCount;
 
-  const Cart({
-    required this.id,
-    required this.items,
-    this.coupon,
-    required this.totals,
-    required this.itemCount,
-  });
+  const Cart({required this.items, required this.totals});
 
   bool get isEmpty => items.isEmpty;
 
+  int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
+
   @override
-  List<Object?> get props => [id, items, coupon, totals, itemCount];
+  List<Object?> get props => [items, totals];
 }

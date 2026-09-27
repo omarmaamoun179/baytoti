@@ -12,6 +12,17 @@ class GetProductUseCase
   GetProductUseCase(this._repository);
 
   @override
-  Future<Either<Failure, ProductDetail>> call(String productId) =>
-      _repository.getProduct(productId);
+  Future<Either<Failure, ProductDetail>> call(String slug) =>
+      _repository.getProduct(slug);
+}
+
+class GetProductReviewsUseCase
+    implements UseCase<Either<Failure, List<Review>>, String> {
+  final ProductRepository _repository;
+
+  GetProductReviewsUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, List<Review>>> call(String productId) =>
+      _repository.getReviews(productId);
 }

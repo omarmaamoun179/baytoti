@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/sheet_handle.dart';
 import '../../domain/entities/checkout.dart';
 import 'address_card.dart';
@@ -11,24 +13,36 @@ Future<String?> showAddressSheet(
   BuildContext context, {
   required List<CheckoutAddress> addresses,
   String? selectedId,
+  VoidCallback? onAdd,
 }) =>
     showModalBottomSheet<String>(
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
-      builder: (_) => AddressSheet(addresses: addresses, selectedId: selectedId),
+      builder: (_) => AddressSheet(
+        addresses: addresses,
+        selectedId: selectedId,
+        onAdd: onAdd,
+      ),
     );
 
 class AddressSheet extends StatelessWidget {
   final List<CheckoutAddress> addresses;
   final String? selectedId;
+  final VoidCallback? onAdd;
 
-  const AddressSheet({super.key, required this.addresses, this.selectedId});
+  const AddressSheet({
+    super.key,
+    required this.addresses,
+    this.selectedId,
+    this.onAdd,
+  });
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
     final maxHeight = MediaQuery.sizeOf(context).height * .7;
+    final onAdd = this.onAdd;
 
     return SafeArea(
       top: false,
@@ -65,6 +79,19 @@ class AddressSheet extends StatelessWidget {
                   },
                 ),
               ),
+              if (onAdd != null) ...[
+                const SizedBox(height: 14),
+                AppButton(
+                  label: 'address_add'.tr(),
+                  trailingIcon: AppIcons.plus,
+                  style: AppButtonStyle.outline,
+                  height: 46,
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    onAdd();
+                  },
+                ),
+              ],
             ],
           ),
         ),

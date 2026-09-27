@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
 import '../../../../core/widgets/network_photo.dart';
-import '../phone_display.dart';
+import '../../../../core/utils/phone.dart';
 
 class ProfileIdentity extends StatelessWidget {
   final String name;
@@ -37,7 +37,7 @@ class ProfileIdentity extends StatelessWidget {
                 Directionality(
                   textDirection: TextDirection.ltr,
                   child: Text(
-                    formatPhoneForDisplay(phone),
+                    displayPhone(phone),
                     style: AppStrings.w400(12, 1.4).c(p.neutral700),
                   ),
                 ),

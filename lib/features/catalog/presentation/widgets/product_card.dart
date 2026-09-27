@@ -70,7 +70,7 @@ class ProductCard extends StatelessWidget {
                     style: AppStrings.w600(12, 1.35).c(p.text),
                   ),
                 ),
-                if (!compact) ...[
+                if (!compact && product.family.name.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     product.family.name,

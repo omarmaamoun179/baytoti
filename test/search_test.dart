@@ -2,20 +2,20 @@ import 'dart:async';
 
 import 'package:baytoti/core/domain/failure.dart';
 import 'package:baytoti/core/domain/paged.dart';
+import 'package:baytoti/core/exceptions/app_exceptions.dart';
+import 'package:baytoti/core/network/api_endpoints.dart';
 import 'package:baytoti/core/theme/app_theme.dart';
 import 'package:baytoti/core/utils/money.dart';
 import 'package:baytoti/core/utils/screen_util_scope.dart';
-import 'package:baytoti/features/catalog/data/fixtures/fixture_backend.dart';
+import 'package:baytoti/features/catalog/domain/entities/category.dart';
 import 'package:baytoti/features/catalog/domain/entities/family_ref.dart';
 import 'package:baytoti/features/catalog/domain/entities/product_summary.dart';
 import 'package:baytoti/features/catalog/domain/repositories/favourites_repository.dart';
 import 'package:baytoti/features/catalog/domain/usecases/favourite_usecases.dart';
 import 'package:baytoti/features/catalog/presentation/widgets/favourite_button.dart';
 import 'package:baytoti/features/search/data/datasources/search_data_source.dart';
-import 'package:baytoti/features/search/data/models/search_model.dart';
 import 'package:baytoti/features/search/data/repositories/search_repository_impl.dart';
 import 'package:baytoti/features/search/domain/entities/search_query.dart';
-import 'package:baytoti/features/search/domain/entities/search_results.dart';
 import 'package:baytoti/features/search/domain/repositories/search_repository.dart';
 import 'package:baytoti/features/search/domain/usecases/search_usecases.dart';
 import 'package:baytoti/features/search/presentation/cubit/search_cubit.dart';
@@ -26,55 +26,91 @@ import 'package:baytoti/features/search/presentation/widgets/search_option_sheet
 import 'package:baytoti/features/search/presentation/widgets/search_result_bar.dart';
 import 'package:baytoti/features/search/presentation/widgets/search_result_row.dart';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fake_network.dart';
+
+const String _products = 'cloak/products_page.json';
+const String _categories = 'search/categories_active.json';
+
+class _OfflineNetwork extends FakeNetwork {
+  @override
+  Future<Response> get(
+    String url, {
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    bool skipAuthRefresh = false,
+  }) async {
+    calls.add(FakeCall('GET', url, queryParameters, null, headers));
+    throw const ConnectionException();
+  }
+}
 
 ProductSummary _product(String id, {bool favourite = false}) => ProductSummary(
       id: id,
       name: 'Product $id',
-      family: const FamilyRef(id: 'fam_1', name: 'Family', city: 'Hawalli'),
-      price: const Money(fils: 1000, display: '1.000 KWD'),
+      family: const FamilyRef(id: '1', name: 'Family', city: 'Hawalli'),
+      price: const Money(fils: 1000),
       isFavourite: favourite,
     );
 
-SearchResults _results(List<String> ids, {int lastPage = 1, int? total}) =>
-    SearchResults(
-      page: Paged(
-        items: [for (final id in ids) _product(id)],
-        lastPage: lastPage,
-        total: total ?? ids.length,
-      ),
-      facets: const SearchFacets(
-        categories: [
-          SearchFacet(value: 'cat_sweets', label: 'Sweets', count: 2),
-        ],
-      ),
+Paged<ProductSummary> _results(
+  List<String> ids, {
+  int lastPage = 1,
+  int? total,
+}) =>
+    Paged(
+      items: [for (final id in ids) _product(id)],
+      lastPage: lastPage,
+      total: total ?? ids.length,
     );
+
+const Category _desserts = Category(
+  id: '5',
+  slug: 'desserts',
+  name: 'الحلويات',
+  icon: CategoryIcon.sweets,
+);
 
 class _Call {
   final SearchQuery query;
-  final Completer<Either<Failure, SearchResults>> completer = Completer();
+  final Completer<Either<Failure, Paged<ProductSummary>>> completer =
+      Completer();
 
   _Call(this.query);
 }
 
 class _FakeSearchRepository implements SearchRepository {
   final List<_Call> calls = [];
-  Either<Failure, SearchResults>? autoAnswer;
+  Either<Failure, Paged<ProductSummary>>? autoAnswer;
+  Either<Failure, List<Category>> categories = const Right([_desserts]);
+  int categoryCalls = 0;
 
   @override
-  Future<Either<Failure, SearchResults>> search(SearchQuery query) {
+  Future<Either<Failure, Paged<ProductSummary>>> search(SearchQuery query) {
     final call = _Call(query);
     calls.add(call);
     final answer = autoAnswer;
     if (answer != null) call.completer.complete(answer);
     return call.completer.future;
   }
+
+  @override
+  Future<Either<Failure, List<Category>>> getCategories() async {
+    categoryCalls++;
+    return categories;
+  }
 }
 
 class _FakeFavouritesRepository implements FavouritesRepository {
   final List<(String, bool)> calls = [];
   final Completer<Either<Failure, bool>> completer = Completer();
+
+  @override
+  Future<Either<Failure, List<ProductSummary>>> getFavourites() async =>
+      const Right([]);
 
   @override
   Future<Either<Failure, bool>> setFavourite(String productId, bool favourite) {
@@ -86,89 +122,261 @@ class _FakeFavouritesRepository implements FavouritesRepository {
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
-  group('the search contract', () {
-    final backend = FixtureBackend();
-
-    test('the fixture answer parses through the model', () {
-      final results = SearchResultsModel.fromJson(backend.search(lang: 'en'));
-
-      expect(results.total, 6);
-      expect(results.items, hasLength(6));
-      expect(results.hasMore, isFalse);
-      expect(results.facets.categories, hasLength(6));
-      expect(results.facets.categories.first.value, 'cat_sweets');
-      expect(results.facets.categories.first.label, 'Sweets');
-      expect(results.facets.categories.first.count, 2);
-      expect(results.facets.cities.map((c) => c.value), contains('Hawalli'));
-      expect(results.facets.priceRange!.minFils, 1250);
-      expect(results.facets.priceRange!.maxFils, 9500);
-      expect(results.facets.categoryName('cat_spices'), 'Spices');
-      expect(results.facets.cityName('Jahra'), 'Jahra');
-      expect(results.items.first.family.city, isNotNull);
-    });
-
-    test('the query omits every absent value', () {
-      expect(const SearchQuery().toQueryParameters(), {'sort': 'top_rated'});
+  group('the query /products is sent', () {
+    test('absent values are left out, the page size is not', () {
+      expect(
+        const SearchQuery().toQueryParameters(),
+        {'sort': 'newest', 'per_page': 20},
+      );
       expect(
         const SearchQuery().withText('   ').toQueryParameters(),
-        isNot(contains('q')),
+        isNot(contains('search')),
       );
+      expect(const SearchQuery().withCategory('  ').categorySlug, isNull);
 
       final query = const SearchQuery()
-          .withText(' cake ')
-          .withCategory('cat_sweets')
-          .withCity('Hawalli')
-          .withMinRating(SearchQuery.highRating)
+          .withText(' كيك ')
+          .withCategory('desserts')
           .withSort(SearchSort.priceAsc)
           .at(2);
 
       expect(query.toQueryParameters(), {
-        'q': 'cake',
-        'category_id': 'cat_sweets',
-        'city': 'Hawalli',
-        'min_rating': 4.5,
+        'search': 'كيك',
+        'category': 'desserts',
         'sort': 'price_asc',
         'page': 2,
+        'per_page': 20,
       });
     });
 
-    test('clearing drops the filters and a price order, not the words', () {
-      final priced = const SearchQuery(text: 'cake', sort: SearchSort.priceDesc)
-          .withCategory('cat_sweets')
-          .withMinRating(4.5);
+    test('every sort offered is one the server accepts', () {
+      const accepted = {
+        'newest',
+        'oldest',
+        'price_asc',
+        'price_desc',
+        'name_asc',
+        'name_desc',
+      };
 
-      expect(priced.hasFilters, isTrue);
-      expect(priced.cleared(), const SearchQuery(text: 'cake'));
-      expect(priced.cleared().hasFilters, isFalse);
-
-      const newest = SearchQuery(sort: SearchSort.newest, city: 'Jahra');
-      expect(newest.cleared().sort, SearchSort.newest);
+      expect(
+        accepted,
+        containsAll([for (final sort in SearchSort.values) sort.wire]),
+      );
+      expect(SearchSort.initial, SearchSort.newest);
     });
 
-    test('the mock source filters and sorts through the repository', () async {
-      final repository = SearchRepositoryImpl(
-        SearchMockDataSource(FixtureBackend(), () async => 'ar'),
+    test('clearing drops the category and a price order, not the words', () {
+      final priced = const SearchQuery(text: 'كيك', sort: SearchSort.priceDesc)
+          .withCategory('desserts');
+
+      expect(priced.hasFilters, isTrue);
+      expect(priced.cleared(), const SearchQuery(text: 'كيك'));
+      expect(priced.cleared().hasFilters, isFalse);
+    });
+  });
+
+  group('the remote search source', () {
+    late FakeNetwork network;
+    late SearchRepositoryImpl repository;
+
+    setUp(() {
+      network = FakeNetwork()
+        ..replySample('GET', ApiEndPoint.products, _products)
+        ..replySample('GET', ApiEndPoint.activeCategories, _categories);
+      repository = SearchRepositoryImpl(SearchRemoteDataSource(network));
+    });
+
+    Future<Failure> searchFailure() async =>
+        (await repository.search(const SearchQuery()))
+            .fold((f) => f, (_) => throw StateError('accepted'));
+
+    test('searches /products and reads the engine\'s page', () async {
+      final page = (await repository.search(
+        const SearchQuery().withText('عباية').withCategory('daily-abayas'),
+      ))
+          .getOrElse(() => throw StateError('refused'));
+
+      expect(network.last('GET').url, ApiEndPoint.products);
+      expect(network.last('GET').query, {
+        'search': 'عباية',
+        'category': 'daily-abayas',
+        'sort': 'newest',
+        'per_page': 20,
+      });
+      expect(page.total, 36);
+      expect(page.hasMore, isTrue);
+      expect(page.items.first.slug, 'aabay-mnasbat-fakhr-6');
+      expect(page.items.first.price.fils, 55000);
+      expect(page.items.first.family.name, 'مخمل');
+      expect(page.items.first.family.city, isNull);
+    });
+
+    test('no match is an empty last page, not a failure', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'search/products_empty.cloak.json',
       );
 
-      final sweets = (await repository.search(
-        const SearchQuery(categoryId: 'cat_sweets'),
-      ))
-          .getOrElse(() => throw StateError('failed'));
-      expect(sweets.total, 2);
-      expect(sweets.items.map((p) => p.id), containsAll(['prd_1', 'prd_2']));
+      final page = (await repository.search(const SearchQuery()))
+          .getOrElse(() => throw StateError('refused'));
 
-      final cheapest = (await repository.search(
-        const SearchQuery(sort: SearchSort.priceAsc),
-      ))
-          .getOrElse(() => throw StateError('failed'));
-      final prices = [for (final p in cheapest.items) p.price.fils];
-      expect(prices, [...prices]..sort());
+      expect(page.items, isEmpty);
+      expect(page.total, 0);
+      expect(page.hasMore, isFalse);
+    });
 
-      final hawalli = (await repository.search(
-        const SearchQuery(city: 'حولي'),
-      ))
-          .getOrElse(() => throw StateError('failed'));
-      expect(hawalli.items.map((p) => p.family.city).toSet(), {'حولي'});
+    test('the categories to filter by come from /categories/active',
+        () async {
+      final categories = (await repository.getCategories())
+          .getOrElse(() => throw StateError('refused'));
+
+      expect(network.last('GET').url, ApiEndPoint.activeCategories);
+      expect(categories, hasLength(10));
+      expect(categories.first.id, '1');
+      expect(categories.first.slug, 'home-cooked-food');
+      expect(categories.first.name, 'الأكل البيتي');
+      expect(categories.first.imageUrl, contains('photo-1547592180'));
+      expect(categories[4].slug, 'desserts');
+    });
+
+    test('the /categories answer reads the same way', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.activeCategories,
+        'betouti/categories.json',
+      );
+
+      final categories = (await repository.getCategories())
+          .getOrElse(() => throw StateError('refused'));
+
+      expect(
+        categories.map((c) => c.slug),
+        containsAllInOrder(['home-cooked-food', 'appetizers', 'main-dishes']),
+      );
+    });
+
+    test('a rejected sort is a validation failure on its field', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'search/products_sort_422.json',
+        status: 422,
+      );
+
+      final failure = await searchFailure();
+
+      expect(failure, isA<ValidationFailure>());
+      expect((failure as ValidationFailure)['sort'], 'sort غير موجود');
+    });
+
+    test('a 500 and a 401 are failures with their status', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+      final server = await searchFailure();
+
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'betouti/unauthenticated_401.json',
+        status: 401,
+      );
+      final refused = await searchFailure();
+
+      expect(server, isA<ServerFailure>());
+      expect(server.message, 'server_error');
+      expect(refused.statusCode, 401);
+    });
+
+    test('offline is a network failure for both calls', () async {
+      final offline = SearchRepositoryImpl(
+        SearchRemoteDataSource(_OfflineNetwork()),
+      );
+
+      final search = (await offline.search(const SearchQuery()))
+          .fold((f) => f, (_) => throw StateError('accepted'));
+      final categories = (await offline.getCategories())
+          .fold((f) => f, (_) => throw StateError('accepted'));
+
+      expect(search, isA<NetworkFailure>());
+      expect(categories, isA<NetworkFailure>());
+    });
+  });
+
+  group('SearchCubit on the live shape', () {
+    late FakeNetwork network;
+    late SearchCubit cubit;
+
+    setUp(() {
+      network = FakeNetwork()
+        ..replySample('GET', ApiEndPoint.products, _products)
+        ..replySample('GET', ApiEndPoint.activeCategories, _categories);
+      final repository = SearchRepositoryImpl(SearchRemoteDataSource(network));
+      cubit = SearchCubit(
+        SearchProductsUseCase(repository),
+        GetSearchCategoriesUseCase(repository),
+        SetFavouriteUseCase(_FakeFavouritesRepository()),
+      );
+    });
+
+    tearDown(() => cubit.close());
+
+    test('the route\'s words and category go out, then the categories',
+        () async {
+      await cubit.load(query: ' كيك ', categorySlug: 'desserts');
+
+      expect(network.calls.map((c) => c.url), [
+        ApiEndPoint.products,
+        ApiEndPoint.activeCategories,
+      ]);
+      expect(network.calls.first.query, {
+        'search': 'كيك',
+        'category': 'desserts',
+        'sort': 'newest',
+        'per_page': 20,
+      });
+      expect(cubit.state.status, SearchStatus.loaded);
+      expect(cubit.state.results!.total, 36);
+      expect(cubit.state.categories, hasLength(10));
+      expect(cubit.state.categoryName, 'الحلويات');
+    });
+
+    test('a failed search is an error screen and asks nothing more',
+        () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+
+      await cubit.load();
+
+      expect(cubit.state.status, SearchStatus.error);
+      expect(cubit.state.results, isNull);
+      expect(cubit.state.errorMessage, 'server_error');
+      expect(network.calls, hasLength(1));
+    });
+
+    test('failed categories keep the results and say why', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.activeCategories,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+
+      await cubit.load();
+
+      expect(cubit.state.status, SearchStatus.loaded);
+      expect(cubit.state.results!.items, hasLength(2));
+      expect(cubit.state.categories, isEmpty);
+      expect(cubit.state.errorMessage, 'server_error');
     });
   });
 
@@ -182,64 +390,53 @@ void main() {
       favourites = _FakeFavouritesRepository();
       cubit = SearchCubit(
         SearchProductsUseCase(repository),
+        GetSearchCategoriesUseCase(repository),
         SetFavouriteUseCase(favourites),
       );
     });
 
     tearDown(() => cubit.close());
 
-    Future<void> loadWith(SearchResults results) async {
+    Future<void> loadWith(Paged<ProductSummary> results) async {
       final load = cubit.load();
       repository.calls.last.completer.complete(Right(results));
       await load;
     }
 
-    test('the first search carries the route values', () async {
-      final load = cubit.load(query: ' cake ', categoryId: 'cat_sweets');
-      expect(cubit.state.status, SearchStatus.loading);
-      expect(repository.calls.single.query.text, 'cake');
-      expect(repository.calls.single.query.categoryId, 'cat_sweets');
-      expect(repository.calls.single.query.sort, SearchSort.topRated);
-
-      repository.calls.single.completer.complete(Right(_results(['a'])));
-      await load;
-
-      expect(cubit.state.status, SearchStatus.loaded);
-      expect(cubit.state.results!.total, 1);
-    });
-
-    test('a failed search is an error screen without results', () async {
-      final load = cubit.load();
+    test('a retry after an error searches again and loads categories',
+        () async {
+      final load = cubit.load(categorySlug: 'desserts');
       repository.calls.single.completer.complete(
-        const Left(ServerFailure(message: 'search_failed')),
+        const Left(NetworkFailure(message: 'offline')),
       );
       await load;
-
       expect(cubit.state.status, SearchStatus.error);
-      expect(cubit.state.results, isNull);
-      expect(cubit.state.errorMessage, 'search_failed');
+      expect(repository.categoryCalls, 0);
+
+      repository.autoAnswer = Right(_results(['a']));
+      await cubit.retry();
+
+      expect(repository.calls.last.query.categorySlug, 'desserts');
+      expect(cubit.state.status, SearchStatus.loaded);
+      expect(repository.categoryCalls, 1);
+      expect(cubit.state.categoryName, 'الحلويات');
     });
 
     test('filters search at once and a repeat is not sent', () async {
       await loadWith(_results(['a']));
       repository.autoAnswer = Right(_results(['b']));
 
-      await cubit.selectCategory('cat_sweets');
-      await cubit.selectCategory('cat_sweets');
+      await cubit.selectCategory('desserts');
+      await cubit.selectCategory('desserts');
       expect(repository.calls, hasLength(2));
-      expect(repository.calls.last.query.categoryId, 'cat_sweets');
-
-      await cubit.toggleRating();
-      expect(repository.calls.last.query.minRating, 4.5);
-      await cubit.toggleRating();
-      expect(repository.calls.last.query.minRating, isNull);
+      expect(repository.calls.last.query.categorySlug, 'desserts');
 
       await cubit.selectPriceSort(SearchSort.priceDesc);
       expect(cubit.state.query.sort, SearchSort.priceDesc);
       await cubit.selectPriceSort(null);
-      expect(cubit.state.query.sort, SearchSort.topRated);
+      expect(cubit.state.query.sort, SearchSort.newest);
 
-      await cubit.selectCity('Hawalli');
+      await cubit.setSort(SearchSort.priceAsc);
       await cubit.clearFilters();
       expect(cubit.state.query, const SearchQuery());
       expect(cubit.state.query.hasFilters, isFalse);
@@ -275,18 +472,18 @@ void main() {
     test('an older search answering late is dropped', () async {
       await loadWith(_results(['a']));
 
-      cubit.selectCategory('cat_sweets');
-      cubit.selectCategory('cat_spices');
+      cubit.selectCategory('desserts');
+      cubit.selectCategory('breakfast');
       final older = repository.calls[1];
       final newer = repository.calls[2];
 
-      newer.completer.complete(Right(_results(['spices'])));
+      newer.completer.complete(Right(_results(['breakfast'])));
       await _settle();
-      older.completer.complete(Right(_results(['sweets'])));
+      older.completer.complete(Right(_results(['desserts'])));
       await _settle();
 
-      expect(cubit.state.query.categoryId, 'cat_spices');
-      expect(cubit.state.results!.items.single.id, 'spices');
+      expect(cubit.state.query.categorySlug, 'breakfast');
+      expect(cubit.state.results!.items.single.id, 'breakfast');
     });
 
     test('the next page appends and stops at the last page', () async {
@@ -298,11 +495,13 @@ void main() {
       expect(repository.calls.last.query.page, 2);
       expect(cubit.state.query.page, isNull);
 
-      repository.calls.last.completer.complete(Right(_results(['c'])));
+      repository.calls.last.completer.complete(
+        Right(Paged(items: [_product('c')], currentPage: 2, lastPage: 2)),
+      );
       await more;
 
       expect(cubit.state.results!.items.map((p) => p.id), ['a', 'b', 'c']);
-      expect(cubit.state.results!.facets.categories, isNotEmpty);
+      expect(cubit.state.results!.total, 3);
 
       await cubit.loadMore();
       expect(repository.calls, hasLength(2));
@@ -382,15 +581,16 @@ void main() {
       final taps = <String>[];
       final controller = TextEditingController();
       addTearDown(controller.dispose);
+      const price = Money(fils: 12500);
       final long = ProductSummary(
         id: 'long',
         name: 'A very long product name that has to wrap onto another line',
         family: const FamilyRef(
-          id: 'fam_1',
+          id: '1',
           name: 'A family with a rather long name',
           city: 'Hawalli',
         ),
-        price: const Money(fils: 12500, display: '12.500 KWD'),
+        price: price,
       );
 
       await pump(
@@ -403,21 +603,15 @@ void main() {
               onSubmitted: (_) {},
             ),
             SearchFilterBar(
-              query: const SearchQuery(categoryId: 'cat_sweets'),
-              facets: const SearchFacets(
-                categories: [
-                  SearchFacet(value: 'cat_sweets', label: 'Sweets', count: 2),
-                ],
-              ),
+              query: const SearchQuery(categorySlug: 'desserts'),
+              categoryName: 'الحلويات',
               onAll: () => taps.add('all'),
               onCategory: () => taps.add('category'),
               onPrice: () => taps.add('price'),
-              onCity: () => taps.add('city'),
-              onRating: () => taps.add('rating'),
             ),
             SearchResultBar(
               total: 5,
-              sort: SearchSort.topRated,
+              sort: SearchSort.newest,
               onSort: () => taps.add('sort'),
             ),
             SearchResultRow(
@@ -430,25 +624,27 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-      expect(find.text('Sweets'), findsOneWidget);
+      expect(find.text('الحلويات'), findsOneWidget);
       expect(
         find.text('A family with a rather long name · Hawalli'),
         findsOneWidget,
       );
 
       await tester.enterText(find.byType(TextField), 'cake');
-      await tester.tap(find.text('Sweets'));
-      await tester.ensureVisible(find.text('search_filter_rating'));
+      await tester.tap(find.text('search_filter_all'));
+      await tester.tap(find.text('الحلويات'));
+      await tester.ensureVisible(find.text('search_filter_price'));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('search_filter_rating'));
-      await tester.tap(find.text('search_sort_top_rated'));
-      await tester.tap(find.text('12.500 KWD'));
+      await tester.tap(find.text('search_filter_price'));
+      await tester.tap(find.text('search_sort_newest'));
+      await tester.tap(find.text(price.display));
       await tester.tap(find.byType(FavouriteButton));
 
       expect(taps, [
         'typed cake',
+        'all',
         'category',
-        'rating',
+        'price',
         'sort',
         'open',
         'favourite',
@@ -460,7 +656,7 @@ void main() {
       final page = await pump(tester, const SizedBox.expand());
       const options = [
         SearchOption<String?>(null, 'All'),
-        SearchOption<String?>('cat_sweets', 'Sweets', count: 2),
+        SearchOption<String?>('desserts', 'Desserts', count: 2),
       ];
 
       final picked = showSearchOptionSheet<String?>(
@@ -472,15 +668,15 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
       expect(find.text('2'), findsOneWidget);
-      await tester.tap(find.text('Sweets'));
+      await tester.tap(find.text('Desserts'));
       await tester.pumpAndSettle();
-      expect((await picked)!.value, 'cat_sweets');
+      expect((await picked)!.value, 'desserts');
 
       final cleared = showSearchOptionSheet<String?>(
         page,
         title: 'Category',
         options: options,
-        selected: 'cat_sweets',
+        selected: 'desserts',
       );
       await tester.pumpAndSettle();
       await tester.tap(find.text('All'));

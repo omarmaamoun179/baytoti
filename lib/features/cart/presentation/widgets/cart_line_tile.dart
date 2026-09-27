@@ -42,11 +42,13 @@ class CartLineTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(item.name, style: AppStrings.w600(13, 1.35).c(p.text)),
-                const SizedBox(height: 2),
-                Text(
-                  item.family.name,
-                  style: AppStrings.w400(11, 1.4).c(p.neutral600),
-                ),
+                if (item.family.name.isNotEmpty) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    item.family.name,
+                    style: AppStrings.w400(11, 1.4).c(p.neutral600),
+                  ),
+                ],
                 const SizedBox(height: 10),
                 Row(
                   children: [

@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
-import '../../domain/entities/explore_feed.dart';
+import '../../domain/entities/explore_tab.dart';
 
 class ExploreTabStrip extends StatelessWidget {
   final ExploreTab selected;

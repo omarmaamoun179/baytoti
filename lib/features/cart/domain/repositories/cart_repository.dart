@@ -11,6 +11,4 @@ abstract class CartRepository {
   Future<Either<Failure, Cart>> updateItem(String itemId, int quantity);
 
   Future<Either<Failure, Cart>> removeItem(String itemId);
-
-  Future<Either<Failure, Cart>> applyCoupon(String code);
 }

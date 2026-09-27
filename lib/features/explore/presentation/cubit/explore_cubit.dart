@@ -1,5 +1,5 @@
 import '../../../../core/abstract/base_cubit.dart';
-import '../../domain/entities/explore_feed.dart';
+import '../../domain/entities/explore_tab.dart';
 import '../../domain/usecases/explore_usecases.dart';
 import 'explore_state.dart';
 
@@ -23,20 +23,20 @@ class ExploreCubit extends BaseCubit<ExploreState> {
     if (generation != _generation) return;
 
     result.fold(
-      (failure) => emit(state.feed == null
+      (failure) => emit(state.products == null
           ? state.copyWith(
               status: ExploreStatus.error,
               errorMessage: failure.message,
             )
           : state.copyWith(
               status: ExploreStatus.loaded,
-              tab: state.feedTab,
+              tab: state.productsTab,
               errorMessage: failure.message,
             )),
-      (feed) => emit(state.copyWith(
+      (products) => emit(state.copyWith(
         status: ExploreStatus.loaded,
-        feed: feed,
-        feedTab: target,
+        products: products,
+        productsTab: target,
       )),
     );
   }
@@ -47,11 +47,11 @@ class ExploreCubit extends BaseCubit<ExploreState> {
   }
 
   Future<void> loadMore() async {
-    final feed = state.feed;
-    final feedTab = state.feedTab;
-    if (feed == null ||
-        feedTab == null ||
-        !feed.hasMore ||
+    final products = state.products;
+    final productsTab = state.productsTab;
+    if (products == null ||
+        productsTab == null ||
+        !products.hasMore ||
         state.isLoadingMore ||
         state.status != ExploreStatus.loaded) {
       return;
@@ -61,7 +61,7 @@ class ExploreCubit extends BaseCubit<ExploreState> {
     emit(state.copyWith(isLoadingMore: true));
 
     final result = await _getExplore(
-      ExploreParams(tab: feedTab, page: feed.nextPage),
+      ExploreParams(tab: productsTab, page: products.nextPage),
     );
     if (generation != _generation) return;
 
@@ -71,7 +71,7 @@ class ExploreCubit extends BaseCubit<ExploreState> {
         errorMessage: failure.message,
       )),
       (next) => emit(state.copyWith(
-        feed: feed.append(next),
+        products: products.append(next),
         isLoadingMore: false,
       )),
     );

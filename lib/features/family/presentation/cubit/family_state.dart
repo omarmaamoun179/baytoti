@@ -11,7 +11,6 @@ class FamilyState extends Equatable {
   final FamilyProfile? family;
   final Paged<ProductSummary> products;
   final bool isLoadingMore;
-  final bool isSavingFollow;
   final String? errorMessage;
 
   const FamilyState({
@@ -19,19 +18,19 @@ class FamilyState extends Equatable {
     this.family,
     this.products = const Paged<ProductSummary>(),
     this.isLoadingMore = false,
-    this.isSavingFollow = false,
     this.errorMessage,
   });
 
   bool get canLoadMore =>
       status == FamilyStatus.loaded && !isLoadingMore && products.hasMore;
 
+  int? get productCount => family?.productCount ?? products.total;
+
   FamilyState copyWith({
     FamilyStatus? status,
     FamilyProfile? family,
     Paged<ProductSummary>? products,
     bool? isLoadingMore,
-    bool? isSavingFollow,
     String? errorMessage,
   }) {
     return FamilyState(
@@ -39,18 +38,11 @@ class FamilyState extends Equatable {
       family: family ?? this.family,
       products: products ?? this.products,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      isSavingFollow: isSavingFollow ?? this.isSavingFollow,
       errorMessage: errorMessage,
     );
   }
 
   @override
-  List<Object?> get props => [
-        status,
-        family,
-        products,
-        isLoadingMore,
-        isSavingFollow,
-        errorMessage,
-      ];
+  List<Object?> get props =>
+      [status, family, products, isLoadingMore, errorMessage];
 }

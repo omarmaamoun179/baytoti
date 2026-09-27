@@ -1,0 +1,13 @@
+{
+  "success": false,
+  "message": "الهاتف مطلوب. (and 1 more error)",
+  "data": null,
+  "errors": {
+    "phone": [
+      "الهاتف مطلوب."
+    ],
+    "otp": [
+      "otp مطلوب."
+    ]
+  }
+}

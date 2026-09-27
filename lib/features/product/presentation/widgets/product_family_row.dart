@@ -10,13 +10,11 @@ import '../../../catalog/domain/entities/image_ref.dart';
 
 class ProductFamilyRow extends StatelessWidget {
   final FamilyRef family;
-  final ImageRef? avatar;
   final VoidCallback onTap;
 
   const ProductFamilyRow({
     super.key,
     required this.family,
-    this.avatar,
     required this.onTap,
   });
 
@@ -41,7 +39,7 @@ class ProductFamilyRow extends StatelessWidget {
               SizedBox(
                 width: 44,
                 height: 44,
-                child: NetworkPhoto(url: avatar?.url),
+                child: NetworkPhoto(url: family.images.firstUrl),
               ),
               const SizedBox(width: 12),
               Expanded(

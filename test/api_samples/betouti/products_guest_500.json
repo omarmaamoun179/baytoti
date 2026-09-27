@@ -1,0 +1,4 @@
+{
+  "message": "App\\Services\\LocationContextService::getRequiredActiveLocation(): Argument #1 ($user) must be of type App\\Models\\User, null given, called in /home/alqudiry-solutions-betouti/htdocs/betouti.alqudiry-solutions.com/app/Services/PublicProductService.php on line 20",
+  "exception": "TypeError"
+}

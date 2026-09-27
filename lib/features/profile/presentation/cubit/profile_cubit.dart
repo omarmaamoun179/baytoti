@@ -14,19 +14,19 @@ class ProfileCubit extends BaseCubit<ProfileState> {
       _reading ??= _read().whenComplete(() => _reading = null);
 
   Future<void> _read() async {
-    final hadProfile = state.profile != null;
-    emit(state.copyWith(status: hadProfile ? null : ProfileStatus.loading));
+    final hadCustomer = state.customer != null;
+    emit(state.copyWith(status: hadCustomer ? null : ProfileStatus.loading));
 
     final result = await _getProfile(NoParams());
 
     result.fold(
       (failure) => emit(state.copyWith(
-        status: hadProfile ? null : ProfileStatus.error,
+        status: hadCustomer ? null : ProfileStatus.error,
         errorMessage: failure.message,
       )),
-      (profile) => emit(state.copyWith(
+      (customer) => emit(state.copyWith(
         status: ProfileStatus.loaded,
-        profile: profile,
+        customer: customer,
       )),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
 import '../../../../core/widgets/app_icon.dart';
+import '../../../../core/widgets/network_photo.dart';
 import '../../../catalog/domain/entities/category.dart';
 
 class CategoryRail extends StatelessWidget {
@@ -46,6 +47,7 @@ class _CategoryTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.palette;
     final amber = category.icon.tinted;
+    final image = category.imageUrl?.trim() ?? '';
 
     return GestureDetector(
       onTap: onTap,
@@ -61,17 +63,20 @@ class _CategoryTile extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Container(
-              height: 66,
-              alignment: Alignment.center,
-              color: amber ? p.amberTint : p.accent100,
-              child: AppIcon(
-                AppIconData('<path d="${category.icon.path}"/>'),
-                size: 26,
-                strokeWidth: 1.5,
-                color: amber ? p.amberInk : p.accent,
+            if (image.isNotEmpty)
+              SizedBox(height: 66, child: NetworkPhoto(url: image))
+            else
+              Container(
+                height: 66,
+                alignment: Alignment.center,
+                color: amber ? p.amberTint : p.accent100,
+                child: AppIcon(
+                  AppIconData('<path d="${category.icon.path}"/>'),
+                  size: 26,
+                  strokeWidth: 1.5,
+                  color: amber ? p.amberInk : p.accent,
+                ),
               ),
-            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 8, 8, 9),
               child: Text(

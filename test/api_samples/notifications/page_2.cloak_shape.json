@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "message": "Notifications retrieved successfully.",
+  "data": [
+    {
+      "id": "0a9b8c7d-6e5f-4a3b-2c1d-0e9f8a7b6c5d",
+      "type": "review_requested",
+      "title": "How was your order?",
+      "body": "Rate the dishes you received.",
+      "data": {
+        "entity": "order",
+        "entity_id": 39,
+        "action": "review"
+      },
+      "read_at": "2026-09-02T18:00:00.000000Z",
+      "created_at": "2025-12-30T17:45:00.000000Z"
+    }
+  ],
+  "links": {
+    "first": "https://betouti.alqudiry-solutions.com/api/v1/notifications?page=1",
+    "last": "https://betouti.alqudiry-solutions.com/api/v1/notifications?page=2",
+    "prev": "https://betouti.alqudiry-solutions.com/api/v1/notifications?page=1",
+    "next": null
+  },
+  "meta": {
+    "current_page": 2,
+    "last_page": 2,
+    "per_page": 15,
+    "total": 4
+  },
+  "errors": null
+}

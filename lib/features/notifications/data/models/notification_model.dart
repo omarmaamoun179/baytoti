@@ -6,54 +6,68 @@ class NotificationModel extends AppNotification {
   const NotificationModel({
     required super.id,
     super.type,
-    required super.isRead,
-    required super.title,
-    required super.body,
-    required super.createdDisplay,
+    super.title,
+    super.body,
+    super.readAt,
+    super.createdAt,
     super.target,
   });
 
-  factory NotificationModel.fromJson(Map<String, dynamic> json) =>
-      NotificationModel(
-        id: json['id'] as String,
-        type: NotificationType.fromWire(json['type']),
-        isRead: json['is_read'] as bool? ?? true,
-        title: json['title'] as String? ?? '',
-        body: json['body'] as String? ?? '',
-        createdDisplay: json['created_display'] as String? ?? '',
-        target: _target(jsonMapOrNull(json['target'])),
-      );
+  factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    final data = jsonMap(json['data']);
+    final entity = _text(data['entity']);
 
-  static NotificationTarget? _target(Map<String, dynamic>? json) {
-    if (json == null) return null;
-    final kind = NotificationTargetKind.fromWire(json['kind']);
-    final id = json['id'];
-    if (kind == null || id is! String || id.isEmpty) return null;
-    return NotificationTarget(kind: kind, id: id);
-  }
-}
-
-class NotificationFeedModel extends NotificationFeed {
-  const NotificationFeedModel({
-    required super.page,
-    required super.unreadCount,
-  });
-
-  factory NotificationFeedModel.fromJson(Map<String, dynamic> json) {
-    final items = [
-      for (final item in jsonList(json['items']))
-        NotificationModel.fromJson(item),
-    ];
-    final meta = jsonMap(json['meta']);
-
-    return NotificationFeedModel(
-      page: Paged<AppNotification>(
-        items: items,
-        currentPage: jsonInt(meta['current_page']) ?? 1,
-        lastPage: jsonInt(meta['last_page']) ?? 1,
+    return NotificationModel(
+      id: jsonId(json['id']) ?? '',
+      type: NotificationType.classify(
+        [_text(json['type']), entity, _text(data['action'])],
       ),
-      unreadCount: jsonInt(json['unread_count']) ??
-          items.where((notification) => !notification.isRead).length,
+      title: _text(json['title']) ?? _text(data['title']),
+      body: _text(json['body']) ?? _text(data['body']),
+      readAt: _date(json['read_at']),
+      createdAt: _date(json['created_at']),
+      target: _target(entity, data),
     );
   }
+
+  static Paged<AppNotification> pageFrom(Map<String, dynamic> json) {
+    final meta = jsonMap(json['meta']);
+    final items = [
+      for (final row in jsonList(json['data'])) NotificationModel.fromJson(row),
+    ];
+
+    return Paged<AppNotification>(
+      items: [
+        for (final item in items)
+          if (item.id.isNotEmpty) item,
+      ],
+      currentPage: jsonCount(meta['current_page']) ?? 1,
+      lastPage: jsonCount(meta['last_page']) ?? 1,
+      total: jsonCount(meta['total']),
+    );
+  }
+
+  static NotificationTarget? _target(
+    String? entity,
+    Map<String, dynamic> data,
+  ) {
+    final kind = NotificationTargetKind.fromEntity(entity);
+    final handle = switch (kind) {
+      NotificationTargetKind.order => jsonId(data['entity_id']),
+      NotificationTargetKind.product ||
+      NotificationTargetKind.family =>
+        _text(data['slug']),
+      null => null,
+    };
+    if (kind == null || handle == null) return null;
+    return NotificationTarget(kind: kind, handle: handle);
+  }
+
+  static String? _text(Object? value) => switch (jsonString(value)?.trim()) {
+        final String text when text.isNotEmpty => text,
+        _ => null,
+      };
+
+  static DateTime? _date(Object? value) =>
+      value is String ? DateTime.tryParse(value) : null;
 }

@@ -1,0 +1,28 @@
+{
+  "success": true,
+  "message": "Product retrieved successfully.",
+  "data": {
+    "id": 15,
+    "name": "مكبوس دجاج",
+    "slug": "mkbws-dgag-15",
+    "short_description": "مكبوس دجاج بالبهارات الكويتية.",
+    "description": null,
+    "base_price": "6.000",
+    "compare_price": null,
+    "status": "active",
+    "is_available": false,
+    "is_featured": true,
+    "preparation_time_minutes": 1440,
+    "approval_status": "approved",
+    "category": null,
+    "store": {
+      "id": 1,
+      "name": "مطبخ أميرة",
+      "slug": "mtbkh-amyr-1"
+    },
+    "images": [],
+    "videos": [],
+    "tags": []
+  },
+  "errors": null
+}

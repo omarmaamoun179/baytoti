@@ -16,7 +16,7 @@ class ProductBadgeChip extends StatelessWidget {
     final p = context.palette;
     final background = switch (badge) {
       ProductBadge.trending => p.amber,
-      ProductBadge.bestSeller => p.accent,
+      ProductBadge.bestSeller || ProductBadge.featured => p.accent,
       ProductBadge.newArrival => p.text,
     };
     final label = badge.labelKey.tr();

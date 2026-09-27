@@ -2,9 +2,12 @@ import 'package:baytoti/core/domain/failure.dart';
 import 'package:baytoti/core/domain/failure_mapper.dart';
 import 'package:baytoti/core/exceptions/app_exceptions.dart';
 import 'package:baytoti/core/network/api_response.dart';
+import 'package:baytoti/core/utils/market.dart';
 import 'package:baytoti/core/utils/money.dart';
 import 'package:baytoti/core/utils/phone.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fake_network.dart';
 
 void main() {
   group('ApiResponse', () {
@@ -43,13 +46,57 @@ void main() {
       );
     });
 
-    test('an error without a body still throws a request failure', () {
+    test('a server error without a body is a generic server failure', () {
       const response = ApiResponse(statusCode: 500, body: '<html>');
 
       expect(
         response.ensureOk,
         throwsA(isA<RequestException>()
-            .having((e) => e.message, 'message', 'request_failed')),
+            .having((e) => e.message, 'message', 'server_error')),
+      );
+    });
+
+    test('a server crash never shows its exception text', () {
+      final response = ApiResponse(
+        statusCode: 500,
+        body: apiSample('betouti/products_guest_500.json'),
+      );
+
+      expect(
+        response.ensureOk,
+        throwsA(isA<RequestException>()
+            .having((e) => e.message, 'message', 'server_error')
+            .having((e) => e.statusCode, 'status', 500)),
+      );
+    });
+
+    test('an unauthenticated call carries the bare Laravel message', () {
+      final response = ApiResponse(
+        statusCode: 401,
+        body: apiSample('betouti/unauthenticated_401.json'),
+      );
+
+      expect(
+        response.ensureOk,
+        throwsA(isA<RequestException>()
+            .having((e) => e.message, 'message', 'Unauthenticated.')
+            .having((e) => e.statusCode, 'status', 401)),
+      );
+    });
+
+    test('the live register validation reads as field errors', () {
+      final response = ApiResponse(
+        statusCode: 422,
+        body: apiSample('betouti/auth_register_422.json'),
+      );
+
+      expect(
+        response.ensureOk,
+        throwsA(isA<RequestException>().having(
+          (e) => e.errors?.keys,
+          'fields',
+          containsAll(['name', 'email', 'password']),
+        )),
       );
     });
   });
@@ -82,6 +129,16 @@ void main() {
   });
 
   group('Money', () {
+    setUp(() {
+      Money.languageCode = 'ar';
+      Money.market = Market.kw;
+    });
+
+    tearDown(() {
+      Money.languageCode = 'ar';
+      Money.market = Market.kw;
+    });
+
     test('reads a plain decimal amount as fils', () {
       final money = Money.of(const {'base_price': 4.25}, 'base_price');
 
@@ -90,32 +147,46 @@ void main() {
     });
 
     test('reads a decimal amount sent as a string', () {
-      final money = Money.of(const {'base_price': '4.250'}, 'base_price');
+      final money = Money.of(const {'price': '55.000'}, 'price');
 
-      expect(money.fils, 4250);
+      expect(money.fils, 55000);
     });
 
     test('an absent amount is null, not zero', () {
       expect(Money.maybeOf(const {'base_price': 1}, 'compare_price'), isNull);
     });
 
-    test('formats three decimals with Western digits in both languages', () {
+    test('follows the current language', () {
+      Money.languageCode = 'en';
+
+      expect(const Money(fils: 500).display, '0.500 KWD');
+    });
+
+    test('an Egyptian market shows two decimals in pounds', () {
+      Money.market = Market.eg;
+
+      expect(Money.format(13300, 'ar'), '13.30 ج.م');
+      expect(Money.format(500, 'en'), '0.50 EGP');
+    });
+
+    test('a Kuwaiti market shows three decimals in dinars', () {
       expect(Money.format(13300, 'ar'), '13.300 د.ك');
       expect(Money.format(500, 'en'), '0.500 KWD');
     });
   });
 
   group('phone', () {
-    test('a local number goes out in E.164 with the Kuwaiti code', () {
-      expect(toE164('5150 2244'), '+96551502244');
+    test('goes out as digits with the country code', () {
+      expect(wirePhone('+965 5150 2244'), '96551502244');
+      expect(wirePhone('+20 106 478 0620'), '201064780620');
     });
 
     test('a Kuwaiti number is shown as dial code and two groups', () {
       expect(displayPhone('+96551502244'), '+965 5150 2244');
     });
 
-    test('anything else is shown as it came', () {
-      expect(displayPhone('+201064780620'), '+201064780620');
+    test('an unknown number is shown as it came', () {
+      expect(displayPhone('+441234567890'), '+441234567890');
     });
   });
 }

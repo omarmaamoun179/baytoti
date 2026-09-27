@@ -1,0 +1,16 @@
+{
+  "success": false,
+  "message": "الاسم مطلوب. (and 2 more errors)",
+  "data": null,
+  "errors": {
+    "name": [
+      "الاسم مطلوب."
+    ],
+    "email": [
+      "البريد الالكتروني مطلوب."
+    ],
+    "password": [
+      "كلمة السر مطلوب."
+    ]
+  }
+}

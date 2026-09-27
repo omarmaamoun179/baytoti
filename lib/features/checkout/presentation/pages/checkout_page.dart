@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/di_exports.dart';
 import '../../../../core/routing/routes.dart';
 import '../../../../core/theme/app_palette.dart';
-import '../../../../core/utils/app_logger.dart';
 import '../../../../core/widgets/app_header.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/app_toast.dart';
@@ -15,16 +14,14 @@ import '../../../../core/widgets/state_views.dart';
 import '../../../cart/domain/entities/cart.dart';
 import '../../../cart/presentation/cubit/cart_state.dart';
 import '../../../cart/presentation/widgets/totals_table.dart';
-import '../../domain/entities/checkout.dart';
+import '../../../orders/domain/entities/order.dart';
+import '../../../orders/presentation/pages/order_page.dart';
 import '../cubit/checkout_cubit.dart';
 import '../cubit/checkout_state.dart';
 import '../widgets/address_card.dart';
 import '../widgets/address_sheet.dart';
 import '../widgets/checkout_pay_footer.dart';
 import '../widgets/checkout_section.dart';
-import '../widgets/checkout_step_strip.dart';
-import '../widgets/fulfilment_selector.dart';
-import '../widgets/payment_method_list.dart';
 
 class CheckoutPage extends StatelessWidget {
   const CheckoutPage({super.key});
@@ -42,34 +39,39 @@ class CheckoutPage extends StatelessWidget {
 class _CheckoutView extends StatelessWidget {
   const _CheckoutView();
 
-  Future<void> _onPlaced(BuildContext context, PlacedOrder order) async {
+  Future<void> _onPlaced(
+    BuildContext context,
+    List<OrderSummary> orders,
+  ) async {
     final cart = context.read<CartCubit>();
-    final redirect = order.paymentRedirect;
+    final orderId = orders.firstOrNull?.id ?? OrderPage.latest;
 
-    if (redirect != null) {
-      try {
-        await sl<LauncherService>().openWebsite(redirect);
-      } catch (e, s) {
-        logError(e, s, reason: 'CheckoutPage.openPaymentRedirect');
-      }
-    }
-    if (context.mounted) {
-      context.go('${AppRoutes.cart}/${AppRoutes.orderSegment}/${order.orderId}');
-    }
+    context.go('${AppRoutes.cart}/${AppRoutes.orderSegment}/$orderId');
     await cart.load();
   }
 
   Future<void> _changeAddress(BuildContext context, CheckoutState state) async {
-    final options = state.options;
-    if (options == null || state.isBusy) return;
+    final addresses = state.addresses;
+    if (addresses == null || state.isBusy) return;
     final cubit = context.read<CheckoutCubit>();
 
     final picked = await showAddressSheet(
       context,
-      addresses: options.addresses,
+      addresses: addresses,
       selectedId: state.addressId,
+      onAdd: () => _addAddress(context),
     );
     if (picked != null) cubit.selectAddress(picked);
+  }
+
+  Future<void> _addAddress(BuildContext context) async {
+    final cubit = context.read<CheckoutCubit>();
+    if (cubit.state.isBusy) return;
+
+    final saved = await context.push<bool>(
+      '${AppRoutes.cart}/${AppRoutes.addressesSegment}/${AppRoutes.newSegment}',
+    );
+    if (saved == true) await cubit.addressAdded();
   }
 
   @override
@@ -101,10 +103,10 @@ class _CheckoutView extends StatelessWidget {
                 ),
                 BlocListener<CheckoutCubit, CheckoutState>(
                   listenWhen: (previous, current) =>
-                      previous.placedOrder == null &&
-                      current.placedOrder != null,
+                      previous.placedOrders == null &&
+                      current.placedOrders != null,
                   listener: (context, state) =>
-                      _onPlaced(context, state.placedOrder!),
+                      _onPlaced(context, state.placedOrders!),
                 ),
               ],
               child: BlocBuilder<CheckoutCubit, CheckoutState>(
@@ -118,8 +120,6 @@ class _CheckoutView extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, CheckoutState state) {
-    final options = state.options;
-
     switch (state.status) {
       case CheckoutStatus.initial:
       case CheckoutStatus.loading:
@@ -130,7 +130,7 @@ class _CheckoutView extends StatelessWidget {
           onRetry: context.read<CheckoutCubit>().load,
         );
       case CheckoutStatus.loaded:
-        if (options == null) return const LoadingView();
+        break;
     }
 
     return BlocBuilder<CartCubit, CartState>(
@@ -150,60 +150,37 @@ class _CheckoutView extends StatelessWidget {
             message: 'cart_empty_sub'.tr(),
           );
         }
-        return _buildForm(context, state, options, cart);
+        return _buildForm(context, state, cart);
       },
     );
   }
 
-  Widget _buildForm(
-    BuildContext context,
-    CheckoutState state,
-    CheckoutOptions options,
-    Cart cart,
-  ) {
+  Widget _buildForm(BuildContext context, CheckoutState state, Cart cart) {
     final cubit = context.read<CheckoutCubit>();
     final address = state.address;
-    final fee = state.fulfilment?.feeFils;
-    final totals = fee == null
-        ? cart.totals
-        : cart.totals.withShipping(fee, context.locale.languageCode);
+    final hasAddresses = state.addresses?.isNotEmpty ?? false;
 
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        const CheckoutStepStrip(),
         CheckoutSection(
           label: 'checkout_address'.tr(),
-          actionLabel: options.addresses.isEmpty ? null : 'checkout_change'.tr(),
+          actionLabel: hasAddresses ? 'checkout_change'.tr() : null,
           onAction: () => _changeAddress(context, state),
           child: address == null
-              ? AddressCard(label: 'checkout_no_address'.tr())
+              ? NoAddressCard(
+                  onAdd: state.isBusy ? null : () => _addAddress(context),
+                )
               : AddressCard(label: address.label, line: address.line),
-        ),
-        CheckoutSection(
-          label: 'checkout_fulfilment'.tr(),
-          child: FulfilmentSelector(
-            methods: options.fulfilmentMethods,
-            selectedId: state.fulfilmentId,
-            onSelect: cubit.selectFulfilment,
-          ),
-        ),
-        CheckoutSection(
-          label: 'checkout_payment'.tr(),
-          child: PaymentMethodList(
-            methods: options.paymentMethods,
-            selectedId: state.paymentId,
-            onSelect: cubit.selectPayment,
-          ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),
-          child: TotalsTable(totals: totals),
+          child: TotalsTable(totals: cart.totals),
         ),
         CheckoutPayFooter(
-          totalDisplay: totals.total.display,
+          totalDisplay: cart.totals.total.display,
           isLoading: state.isBusy,
-          onPay: state.canPlace ? () => cubit.placeOrder(cart.id) : null,
+          onPay: state.canPlace ? cubit.placeOrder : null,
         ),
         const SizedBox(height: 12),
       ],

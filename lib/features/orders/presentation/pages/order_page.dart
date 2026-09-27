@@ -14,7 +14,6 @@ import '../cubit/order_cubit.dart';
 import '../cubit/order_state.dart';
 import '../widgets/order_header_card.dart';
 import '../widgets/order_items_section.dart';
-import '../widgets/order_rating_card.dart';
 import '../widgets/order_timeline.dart';
 
 class OrderPage extends StatelessWidget {
@@ -51,30 +50,17 @@ class _OrderView extends StatelessWidget {
             onBack: () => context.pop(),
           ),
           Expanded(
-            child: MultiBlocListener(
-              listeners: [
-                BlocListener<OrderCubit, OrderState>(
-                  listenWhen: (previous, current) =>
-                      current.errorMessage != null &&
-                      current.errorMessage != previous.errorMessage &&
-                      current.order != null,
-                  listener: (context, state) => showAppToast(
-                    context,
-                    state.errorMessage!,
-                    isError: true,
-                  ),
-                ),
-                BlocListener<OrderCubit, OrderState>(
-                  listenWhen: (previous, current) =>
-                      previous.ratingStatus != current.ratingStatus &&
-                      current.ratingStatus == RatingStatus.succeeded,
-                  listener: (context, _) =>
-                      showAppToast(context, 'order_rated'.tr()),
-                ),
-              ],
-              child: BlocBuilder<OrderCubit, OrderState>(
-                builder: _buildBody,
+            child: BlocConsumer<OrderCubit, OrderState>(
+              listenWhen: (previous, current) =>
+                  current.errorMessage != null &&
+                  current.errorMessage != previous.errorMessage &&
+                  current.order != null,
+              listener: (context, state) => showAppToast(
+                context,
+                state.errorMessage!,
+                isError: true,
               ),
+              builder: _buildBody,
             ),
           ),
         ],
@@ -108,18 +94,15 @@ class _OrderView extends StatelessWidget {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.zero,
         children: [
-          OrderHeaderCard(reference: order.reference, eta: order.etaDisplay),
+          OrderHeaderCard(
+            reference: order.reference,
+            subtitle: order.family?.name,
+          ),
           OrderTimeline(steps: order.timeline),
           OrderItemsSection(
             items: order.items,
             totalDisplay: order.totals.total.display,
           ),
-          if (state.showsRating)
-            OrderRatingCard(
-              rating: state.rating,
-              enabled: !state.isRating,
-              onRate: cubit.rate,
-            ),
           const SizedBox(height: 12),
         ],
       ),

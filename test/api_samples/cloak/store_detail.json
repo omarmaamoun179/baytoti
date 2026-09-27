@@ -1,0 +1,15 @@
+{
+  "data": {
+    "id": 6,
+    "name": "مخمل",
+    "slug": "mkhml-6",
+    "description": "متجر متخصص في العبايات وفساتين المناسبات بتصاميم عصرية وفاخرة.",
+    "logo": "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=1200&q=80",
+    "banner": "https://images.unsplash.com/photo-1483985988355-763728e1935b?auto=format&fit=crop&w=1200&q=80",
+    "phone": "96550000006",
+    "email": "vendor.velvet@cloak.test"
+  },
+  "success": true,
+  "message": "",
+  "errors": null
+}

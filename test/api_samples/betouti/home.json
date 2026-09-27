@@ -1,0 +1,193 @@
+{
+  "success": true,
+  "message": "Home data retrieved successfully.",
+  "data": {
+    "banners": [
+      {
+        "id": 1,
+        "title": "أكل بيتي بطعم زمان",
+        "subtitle": "اكتشف أكلات الأسر المنتجة في منطقتك",
+        "image_url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "اكتشف الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 1,
+          "action": "details"
+        }
+      },
+      {
+        "id": 2,
+        "title": "وجبتك من بيتنا",
+        "subtitle": "أطباق منزلية طازجة محضرة يوميًا",
+        "image_url": "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "تسوق الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 3,
+          "action": "details"
+        }
+      },
+      {
+        "id": 3,
+        "title": "حلويات ومخبوزات بيتية",
+        "subtitle": "طعم منزلي يناسب كل مناسبة",
+        "image_url": "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "اكتشف الحلويات",
+        "target": {
+          "entity": "category",
+          "entity_id": 5,
+          "action": "details"
+        }
+      }
+    ],
+    "categories": [
+      {
+        "id": 1,
+        "name": "الأكل البيتي",
+        "slug": "home-cooked-food",
+        "image_url": "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 2,
+        "name": "المقبلات",
+        "slug": "appetizers",
+        "image_url": "https://images.unsplash.com/photo-1541014741259-de529411b96a?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 3,
+        "name": "الأكلات الرئيسية",
+        "slug": "main-dishes",
+        "image_url": "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 4,
+        "name": "المعجنات والمخبوزات",
+        "slug": "bakery-and-pastries",
+        "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 5,
+        "name": "الحلويات",
+        "slug": "desserts",
+        "image_url": "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 6,
+        "name": "المخبوزات البلدية",
+        "slug": "traditional-bakery",
+        "image_url": "https://images.unsplash.com/photo-1509440159596-0249088772ff?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 7,
+        "name": "وجبات الإفطار",
+        "slug": "breakfast",
+        "image_url": "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 8,
+        "name": "وجبات الغداء",
+        "slug": "lunch",
+        "image_url": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 9,
+        "name": "وجبات العشاء",
+        "slug": "dinner",
+        "image_url": "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80"
+      },
+      {
+        "id": 10,
+        "name": "الأكل الصحي",
+        "slug": "healthy-food",
+        "image_url": "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?auto=format&fit=crop&w=1200&q=80"
+      }
+    ],
+    "featured_products": [],
+    "promotions": [
+      {
+        "id": 1,
+        "title": "خصم حتى 20%",
+        "subtitle": "على وجبات مختارة من الأسر المنتجة",
+        "discount_label": "20%",
+        "image_url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "اطلب الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 3,
+          "action": "details"
+        }
+      },
+      {
+        "id": 2,
+        "title": "حلويات البيت",
+        "subtitle": "حلويات ومخبوزات بأسعار مميزة",
+        "discount_label": "15%",
+        "image_url": "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "اطلب الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 5,
+          "action": "details"
+        }
+      },
+      {
+        "id": 3,
+        "title": "فطار من الأسر المنتجة",
+        "subtitle": "ابدأ يومك بوجبة بيتية طازجة",
+        "discount_label": "10%",
+        "image_url": "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=1200&q=80",
+        "mobile_image_url": "https://images.unsplash.com/photo-1533089860892-a7c6f0a88666?auto=format&fit=crop&w=1200&q=80",
+        "cta_label": "اطلب الآن",
+        "target": {
+          "entity": "category",
+          "entity_id": 7,
+          "action": "details"
+        }
+      }
+    ],
+    "trusted_stores": [
+      {
+        "id": 1,
+        "name": "مطبخ أميرة",
+        "slug": "mtbkh-amyr-1",
+        "description": "أكلات بيتية مصرية محضرة يوميًا بطعم البيت.",
+        "logo_url": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80",
+        "banner_url": "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1200&q=80",
+        "is_trusted": true
+      },
+      {
+        "id": 2,
+        "name": "سفرة ماما",
+        "slug": "sfr-mama-2",
+        "description": "أكل بيتي ووجبات منزلية بطابع مصري أصيل.",
+        "logo_url": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80",
+        "banner_url": "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1200&q=80",
+        "is_trusted": true
+      },
+      {
+        "id": 3,
+        "name": "مطبخ ست البيت",
+        "slug": "mtbkh-st-albyt-3",
+        "description": "أطباق منزلية ومخبوزات وحلويات يومية.",
+        "logo_url": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80",
+        "banner_url": "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1200&q=80",
+        "is_trusted": true
+      },
+      {
+        "id": 4,
+        "name": "أكل زمان",
+        "slug": "akl-zman-4",
+        "description": "وصفات مصرية أصيلة بطعم زمان.",
+        "logo_url": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80",
+        "banner_url": "https://images.unsplash.com/photo-1556911220-bff31c812dba?auto=format&fit=crop&w=1200&q=80",
+        "is_trusted": true
+      }
+    ]
+  },
+  "errors": null
+}

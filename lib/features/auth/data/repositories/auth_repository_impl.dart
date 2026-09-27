@@ -1,6 +1,8 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/domain/failure.dart';
+import '../../../../core/domain/failure_mapper.dart';
+import '../../../../core/exceptions/app_exceptions.dart';
 import '../../../../core/network/token_store.dart';
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/otp_challenge.dart';
@@ -12,6 +14,7 @@ import '../models/auth_models.dart';
 class AuthRepositoryImpl implements AuthRepository {
   final AuthDataSource _remote;
   final AuthLocalDataSource _local;
+  AuthAccountPayload? _pending;
 
   AuthRepositoryImpl(this._remote, this._local);
 
@@ -38,17 +41,21 @@ class AuthRepositoryImpl implements AuthRepository {
     required String fallbackPhone,
   }) async {
     final token = payload.token;
-    if (token == null || token.isEmpty) {
-      final phone =
-          payload.customer.phone.isEmpty ? fallbackPhone : payload.customer.phone;
-      return Right(AwaitingVerification(phone));
+    final customer = payload.customer;
+
+    if (token == null || token.isEmpty || !customer.verified) {
+      _pending = payload;
+      return Right(AwaitingVerification(
+        customer.phone.isEmpty ? fallbackPhone : customer.phone,
+      ));
     }
 
+    _pending = null;
     final saved = await _local.saveSession(
       TokenPair(accessToken: token),
-      payload.customer.verifiedCopy(),
+      customer,
     );
-    return saved.map((_) => SignedIn(payload.customer.verifiedCopy()));
+    return saved.map((_) => SignedIn(customer));
   }
 
   @override
@@ -66,13 +73,23 @@ class AuthRepositoryImpl implements AuthRepository {
     return result.fold<Future<Either<Failure, AuthSession>>>(
       (failure) async => Left(failure),
       (payload) async {
-        final saved = await _local.saveSession(payload.tokens, payload.customer);
-        return saved.map(
-          (_) => AuthSession(
-            customer: payload.customer,
-            isNewUser: payload.isNewUser,
-          ),
+        final token = payload.token ?? _pending?.token;
+        final customer = payload.customer ?? _pending?.customer;
+        if (token == null || token.isEmpty || customer == null) {
+          return Left(mapExceptionToFailure(
+            const RequestException('auth_failed'),
+          ));
+        }
+
+        final verified = customer.verifiedCopy();
+        final saved = await _local.saveSession(
+          TokenPair(accessToken: token, refreshToken: payload.refreshToken),
+          verified,
         );
+        return saved.map((_) {
+          _pending = null;
+          return AuthSession(customer: verified, isNewUser: payload.isNewUser);
+        });
       },
     );
   }

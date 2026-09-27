@@ -17,6 +17,7 @@ class OtpChallenge extends Equatable {
   final int expiresIn;
   final int resendAfter;
   final int digits;
+  final String? demoCode;
 
   const OtpChallenge({
     required this.phone,
@@ -24,10 +25,12 @@ class OtpChallenge extends Equatable {
     required this.expiresIn,
     required this.resendAfter,
     required this.digits,
+    this.demoCode,
   });
 
   @override
-  List<Object?> get props => [phone, mode, expiresIn, resendAfter, digits];
+  List<Object?> get props =>
+      [phone, mode, expiresIn, resendAfter, digits, demoCode];
 }
 
 class AuthSession extends Equatable {

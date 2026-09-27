@@ -9,7 +9,6 @@ class CartState extends Equatable {
   final Cart? cart;
   final Set<String> busyItemIds;
   final bool isAdding;
-  final bool isApplyingCoupon;
   final String? errorMessage;
 
   const CartState({
@@ -17,7 +16,6 @@ class CartState extends Equatable {
     this.cart,
     this.busyItemIds = const {},
     this.isAdding = false,
-    this.isApplyingCoupon = false,
     this.errorMessage,
   });
 
@@ -30,7 +28,6 @@ class CartState extends Equatable {
     Cart? cart,
     Set<String>? busyItemIds,
     bool? isAdding,
-    bool? isApplyingCoupon,
     String? errorMessage,
   }) {
     return CartState(
@@ -38,12 +35,11 @@ class CartState extends Equatable {
       cart: cart ?? this.cart,
       busyItemIds: busyItemIds ?? this.busyItemIds,
       isAdding: isAdding ?? this.isAdding,
-      isApplyingCoupon: isApplyingCoupon ?? this.isApplyingCoupon,
       errorMessage: errorMessage,
     );
   }
 
   @override
   List<Object?> get props =>
-      [status, cart, busyItemIds, isAdding, isApplyingCoupon, errorMessage];
+      [status, cart, busyItemIds, isAdding, errorMessage];
 }

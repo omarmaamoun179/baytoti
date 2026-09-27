@@ -6,12 +6,10 @@ import '../../../catalog/domain/entities/product_summary.dart';
 import '../entities/family_profile.dart';
 
 abstract class FamilyRepository {
-  Future<Either<Failure, FamilyProfile>> getFamily(String familyId);
+  Future<Either<Failure, FamilyProfile>> getFamily(String slug);
 
   Future<Either<Failure, Paged<ProductSummary>>> getProducts(
-    String familyId, {
+    String slug, {
     int? page,
   });
-
-  Future<Either<Failure, bool>> setFollowing(String familyId, bool following);
 }

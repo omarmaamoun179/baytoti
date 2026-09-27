@@ -27,7 +27,7 @@ class CheckoutPayFooter extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AppButton(
-            label: 'checkout_confirm_pay'.tr(),
+            label: 'checkout_place_order'.tr(),
             trailingText: totalDisplay,
             height: 54,
             isLoading: isLoading,

@@ -1,8 +1,8 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/domain/failure.dart';
-import '../entities/profile.dart';
+import '../../../auth/domain/entities/customer.dart';
 
 abstract class ProfileRepository {
-  Future<Either<Failure, Profile>> getProfile();
+  Future<Either<Failure, Customer>> getProfile();
 }

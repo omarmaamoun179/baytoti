@@ -1,41 +1,46 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../core/domain/paged.dart';
-
 enum NotificationType {
-  orderStatus('order_status'),
-  offer('offer'),
-  exhibition('exhibition'),
-  familyUpdate('family_update'),
-  ratingRequest('rating_request'),
-  support('support');
+  ratingRequest('rating_request', ['review', 'rating']),
+  exhibition('exhibition', ['exhibition', 'bazaar']),
+  offer('offer', ['offer', 'coupon', 'discount', 'promo']),
+  support('support', ['support', 'ticket']),
+  orderStatus('order_status', ['order', 'deliver', 'ship', 'payment']),
+  familyUpdate('family_update', ['store', 'family', 'product']);
 
-  final String wire;
+  final String tag;
+  final List<String> keywords;
 
-  const NotificationType(this.wire);
+  const NotificationType(this.tag, this.keywords);
 
-  String get tagKey => 'notification_tag_$wire';
+  String get tagKey => 'notification_tag_$tag';
 
-  static NotificationType? fromWire(Object? value) {
+  static NotificationType? classify(Iterable<String?> words) {
+    final subject = words.whereType<String>().join(' ').toLowerCase();
+    if (subject.isEmpty) return null;
+
     for (final type in values) {
-      if (type.wire == value) return type;
+      if (type.keywords.any(subject.contains)) return type;
     }
     return null;
   }
 }
 
 enum NotificationTargetKind {
-  order('order'),
-  family('family'),
-  product('product');
+  order(['order']),
+  product(['product']),
+  family(['store', 'family']);
 
-  final String wire;
+  final List<String> keywords;
 
-  const NotificationTargetKind(this.wire);
+  const NotificationTargetKind(this.keywords);
 
-  static NotificationTargetKind? fromWire(Object? value) {
+  static NotificationTargetKind? fromEntity(String? entity) {
+    final subject = entity?.toLowerCase();
+    if (subject == null || subject.isEmpty) return null;
+
     for (final kind in values) {
-      if (kind.wire == value) return kind;
+      if (kind.keywords.any(subject.contains)) return kind;
     }
     return null;
   }
@@ -43,49 +48,42 @@ enum NotificationTargetKind {
 
 class NotificationTarget extends Equatable {
   final NotificationTargetKind kind;
-  final String id;
+  final String handle;
 
-  const NotificationTarget({required this.kind, required this.id});
+  const NotificationTarget({required this.kind, required this.handle});
 
   @override
-  List<Object?> get props => [kind, id];
+  List<Object?> get props => [kind, handle];
 }
 
 class AppNotification extends Equatable {
   final String id;
   final NotificationType? type;
-  final bool isRead;
-  final String title;
-  final String body;
-  final String createdDisplay;
+  final String? title;
+  final String? body;
+  final DateTime? readAt;
+  final DateTime? createdAt;
   final NotificationTarget? target;
 
   const AppNotification({
     required this.id,
     this.type,
-    required this.isRead,
-    required this.title,
-    required this.body,
-    required this.createdDisplay,
+    this.title,
+    this.body,
+    this.readAt,
+    this.createdAt,
     this.target,
   });
 
+  bool get isRead => readAt != null;
+
+  String? get headline => title ?? body;
+
+  String? get detail => title == null ? null : body;
+
   @override
   List<Object?> get props =>
-      [id, type, isRead, title, body, createdDisplay, target];
-}
-
-class NotificationFeed extends Equatable {
-  final Paged<AppNotification> page;
-  final int unreadCount;
-
-  const NotificationFeed({required this.page, required this.unreadCount});
-
-  bool get hasUnread =>
-      unreadCount > 0 || page.items.any((notification) => !notification.isRead);
-
-  @override
-  List<Object?> get props => [page, unreadCount];
+      [id, type, title, body, readAt, createdAt, target];
 }
 
 class NotificationsQuery extends Equatable {

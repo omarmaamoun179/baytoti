@@ -7,34 +7,24 @@ import '../cubit/search_cubit.dart';
 import '../cubit/search_state.dart';
 import 'search_option_sheet.dart';
 
-Future<void> pickCategory(BuildContext context, SearchState state) async {
+Future<void> pickCategory(BuildContext context) async {
   final cubit = context.read<SearchCubit>();
+  if (cubit.state.categories.isEmpty) await cubit.loadCategories();
+
+  final categories = cubit.state.categories;
+  if (categories.isEmpty || !context.mounted) return;
+
   final pick = await showSearchOptionSheet<String?>(
     context,
     title: 'search_filter_category'.tr(),
-    selected: state.query.categoryId,
+    selected: cubit.state.query.categorySlug,
     options: [
       SearchOption(null, 'search_filter_all'.tr()),
-      for (final facet in state.facets.categories)
-        SearchOption(facet.value, facet.label, count: facet.count),
+      for (final category in categories)
+        SearchOption(category.slug, category.name),
     ],
   );
   if (pick != null) cubit.selectCategory(pick.value);
-}
-
-Future<void> pickCity(BuildContext context, SearchState state) async {
-  final cubit = context.read<SearchCubit>();
-  final pick = await showSearchOptionSheet<String?>(
-    context,
-    title: 'search_filter_city'.tr(),
-    selected: state.query.city,
-    options: [
-      SearchOption(null, 'search_filter_all'.tr()),
-      for (final facet in state.facets.cities)
-        SearchOption(facet.value, facet.label, count: facet.count),
-    ],
-  );
-  if (pick != null) cubit.selectCity(pick.value);
 }
 
 Future<void> pickPriceOrder(BuildContext context, SearchState state) async {

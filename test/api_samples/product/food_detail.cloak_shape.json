@@ -1,0 +1,47 @@
+{
+  "success": true,
+  "message": "Product retrieved successfully.",
+  "data": {
+    "id": 14,
+    "name": "كبة مقلية",
+    "slug": "kb-mkly-14",
+    "short_description": "كبة بيتية محشوة باللحم والصنوبر.",
+    "description": "كبة محضرة يومياً في مطبخ أميرة، تقدم ساخنة مع صلصة الطحينة.",
+    "base_price": "4.500",
+    "compare_price": "5.250",
+    "status": "active",
+    "is_available": true,
+    "is_featured": false,
+    "preparation_time_minutes": 45,
+    "approval_status": "approved",
+    "category": {
+      "id": 1,
+      "name": "الأكل البيتي",
+      "slug": "home-cooked-food"
+    },
+    "store": {
+      "id": 1,
+      "name": "مطبخ أميرة",
+      "slug": "mtbkh-amyr-1",
+      "logo_url": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=1200&q=80",
+      "is_trusted": true
+    },
+    "images": [
+      {
+        "id": 41,
+        "image": "https://images.unsplash.com/photo-1541518763669-27fef04b14ea?auto=format&fit=crop&w=1200&q=80",
+        "alt_text": "كبة مقلية",
+        "is_primary": true
+      },
+      {
+        "id": 42,
+        "image": "https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=1200&q=80",
+        "alt_text": "كبة مقلية - صورة إضافية",
+        "is_primary": false
+      }
+    ],
+    "videos": [],
+    "tags": []
+  },
+  "errors": null
+}

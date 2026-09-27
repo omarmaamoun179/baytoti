@@ -56,6 +56,13 @@ void main() {
 
   tearDown(() => server.close(force: true));
 
+  test('the language goes out as the bare app language code', () async {
+    final headers = await service.getDefaultHeaders();
+
+    expect(headers['Accept-Language'], 'en');
+    expect(headers['Authorization'], 'Bearer 1|dead');
+  });
+
   test('a refused token ends the session', () async {
     await expectLater(
       service.get(url),

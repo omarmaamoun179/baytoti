@@ -1,28 +1,33 @@
 import 'package:equatable/equatable.dart';
 
+import '../../../../core/utils/money.dart';
 import '../../../catalog/domain/entities/family_ref.dart';
 import '../../../catalog/domain/entities/image_ref.dart';
 import '../../../catalog/domain/entities/order_totals.dart';
 
 enum OrderStatus {
-  placed('placed'),
-  accepted('accepted'),
-  preparing('preparing'),
-  ready('ready'),
-  outForDelivery('out_for_delivery'),
-  delivered('delivered'),
-  cancelled('cancelled'),
-  rejected('rejected');
+  pending,
+  confirmed,
+  processing,
+  shipped,
+  delivered,
+  cancelled;
 
-  final String wire;
+  static const List<OrderStatus> flow = [
+    pending,
+    confirmed,
+    processing,
+    shipped,
+    delivered,
+  ];
 
-  const OrderStatus(this.wire);
+  static const List<OrderStatus> cancelledFlow = [pending, cancelled];
+
+  String get wire => name;
 
   static OrderStatus? fromWire(Object? value) {
-    for (final status in values) {
-      if (status.wire == value) return status;
-    }
-    return null;
+    final wire = value is String ? value.trim().toLowerCase() : null;
+    return values.where((status) => status.name == wire).firstOrNull;
   }
 }
 
@@ -30,122 +35,121 @@ class OrderSummary extends Equatable {
   final String id;
   final String reference;
   final OrderStatus? status;
-  final String totalDisplay;
+  final Money total;
+  final FamilyRef? family;
 
   const OrderSummary({
     required this.id,
     required this.reference,
     this.status,
-    required this.totalDisplay,
+    required this.total,
+    this.family,
   });
 
   @override
-  List<Object?> get props => [id, reference, status, totalDisplay];
+  List<Object?> get props => [id, reference, status, total, family];
 }
 
 class OrderTimelineStep extends Equatable {
-  final OrderStatus? status;
-  final String label;
+  final OrderStatus status;
   final DateTime? at;
-  final String? atDisplay;
   final bool done;
 
-  const OrderTimelineStep({
-    this.status,
-    required this.label,
-    this.at,
-    this.atDisplay,
-    required this.done,
-  });
+  const OrderTimelineStep({required this.status, this.at, required this.done});
 
   @override
-  List<Object?> get props => [status, label, at, atDisplay, done];
+  List<Object?> get props => [status, at, done];
 }
 
 class OrderLine extends Equatable {
-  final String productId;
+  final String id;
+  final String? productId;
   final String name;
   final int quantity;
-  final String lineTotalDisplay;
+  final Money unitPrice;
+  final Money lineTotal;
   final ImageRef? image;
 
   const OrderLine({
-    required this.productId,
+    required this.id,
+    this.productId,
     required this.name,
     required this.quantity,
-    required this.lineTotalDisplay,
+    required this.unitPrice,
+    required this.lineTotal,
     this.image,
   });
 
   @override
   List<Object?> get props =>
-      [productId, name, quantity, lineTotalDisplay, image];
+      [id, productId, name, quantity, unitPrice, lineTotal, image];
 }
 
 class OrderDetail extends Equatable {
   final String id;
   final String reference;
   final OrderStatus? status;
-  final String? etaDisplay;
-  final List<OrderTimelineStep> timeline;
   final List<OrderLine> items;
   final OrderTotals totals;
   final FamilyRef? family;
-  final bool canRate;
-  final bool canCancel;
+  final String? notes;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   const OrderDetail({
     required this.id,
     required this.reference,
     this.status,
-    this.etaDisplay,
-    required this.timeline,
     required this.items,
     required this.totals,
     this.family,
-    this.canRate = false,
-    this.canCancel = false,
+    this.notes,
+    this.createdAt,
+    this.updatedAt,
   });
+
+  List<OrderTimelineStep> get timeline {
+    final current = status ?? OrderStatus.pending;
+    final steps = current == OrderStatus.cancelled
+        ? OrderStatus.cancelledFlow
+        : OrderStatus.flow;
+    final reached = steps.indexOf(current);
+
+    return [
+      for (var i = 0; i < steps.length; i++)
+        OrderTimelineStep(
+          status: steps[i],
+          done: i <= reached,
+          at: i == 0
+              ? createdAt
+              : i == reached
+                  ? updatedAt
+                  : null,
+        ),
+    ];
+  }
 
   @override
   List<Object?> get props => [
         id,
         reference,
         status,
-        etaDisplay,
-        timeline,
         items,
         totals,
         family,
-        canRate,
-        canCancel,
+        notes,
+        createdAt,
+        updatedAt,
       ];
 }
 
 class OrdersQuery extends Equatable {
-  final OrderStatus? status;
   final int? page;
 
-  const OrdersQuery({this.status, this.page});
+  const OrdersQuery({this.page});
 
-  Map<String, dynamic> toQueryParameters() => {
-        'status': ?status?.wire,
-        'page': ?page,
-      };
+  Map<String, dynamic> toQueryParameters() => {'page': ?page};
 
   @override
-  List<Object?> get props => [status, page];
-}
-
-class RateOrderParams extends Equatable {
-  static const int minRating = 1;
-  static const int maxRating = 5;
-
-  final String orderId;
-  final int rating;
-
-  const RateOrderParams({required this.orderId, required this.rating});
-
-  @override
-  List<Object?> get props => [orderId, rating];
+  List<Object?> get props => [page];
 }

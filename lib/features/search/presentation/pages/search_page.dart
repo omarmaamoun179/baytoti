@@ -34,7 +34,7 @@ class SearchPage extends StatelessWidget {
         '${context.locale.languageCode}|$initialQuery|$initialCategoryId',
       ),
       create: (_) => sl<SearchCubit>()
-        ..load(query: initialQuery, categoryId: initialCategoryId),
+        ..load(query: initialQuery, categorySlug: initialCategoryId),
       child: _SearchView(initialQuery: initialQuery ?? ''),
     );
   }
@@ -100,12 +100,10 @@ class _SearchViewState extends State<_SearchView> {
                       SliverToBoxAdapter(
                         child: SearchFilterBar(
                           query: state.query,
-                          facets: state.facets,
+                          categoryName: state.categoryName,
                           onAll: cubit.clearFilters,
-                          onCategory: () => pickCategory(context, state),
+                          onCategory: () => pickCategory(context),
                           onPrice: () => pickPriceOrder(context, state),
-                          onCity: () => pickCity(context, state),
-                          onRating: cubit.toggleRating,
                         ),
                       ),
                       SliverToBoxAdapter(
@@ -167,7 +165,7 @@ class _SearchViewState extends State<_SearchView> {
               final product = results.items[index];
               return SearchResultRow(
                 product: product,
-                onOpen: () => context.openProduct(product.id),
+                onOpen: () => context.openProduct(product.slug),
                 onFavourite: () => _toggleFavourite(product),
               );
             },

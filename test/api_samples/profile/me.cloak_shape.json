@@ -1,0 +1,15 @@
+{
+  "success": true,
+  "message": "User retrieved successfully.",
+  "data": {
+    "id": 18,
+    "name": "Noura Al-Anzi",
+    "email": null,
+    "phone": "96551502244",
+    "avatar": null,
+    "status": 1,
+    "email_verified_at": null,
+    "created_at": "2026-09-12T14:33:34.000000Z"
+  },
+  "errors": null
+}

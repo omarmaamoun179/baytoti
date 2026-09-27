@@ -92,6 +92,23 @@ void main() {
     }
   });
 
+  test('the account screens live under the profile tab', () {
+    for (final segment in [
+      AppRoutes.orderSegment,
+      AppRoutes.favouritesSegment,
+      AppRoutes.addressesSegment,
+      '${AppRoutes.addressesSegment}/${AppRoutes.newSegment}',
+    ]) {
+      expect(registered, contains('${AppRoutes.profile}/$segment'));
+    }
+    expect(
+      registered,
+      contains(
+        '${AppRoutes.cart}/${AppRoutes.addressesSegment}/${AppRoutes.newSegment}',
+      ),
+    );
+  });
+
   test('details nest under every tab they are opened from', () {
     for (final tab in AppRoutes.tabs) {
       expect(registered, contains('$tab/${AppRoutes.productSegment}/:id'));
@@ -124,6 +141,54 @@ void main() {
   });
 
   test('a query string never creates a match', () {
-    expect(isProtectedRoute('/home?next=/cart/orders/1'), isFalse);
+    expect(isProtectedRoute('/welcome?next=/cart/orders/1'), isFalse);
+  });
+
+  test('browsing needs an account: every tab is protected', () {
+    for (final tab in AppRoutes.tabs) {
+      expect(isProtectedRoute(tab), isTrue, reason: tab);
+      expect(Uri.parse(_guest(tab)!).path, AppRoutes.auth, reason: tab);
+    }
+  });
+
+  group('the browsing location', () {
+    SessionNotifier located(bool? hasLocation) {
+      final notifier = SessionNotifier()..signedIn();
+      if (hasLocation != null) notifier.locationKnown(hasLocation);
+      return notifier;
+    }
+
+    test('a customer with none is sent to choose one, and back after', () {
+      final redirect = redirectForLocation(
+        location: '/explore',
+        session: located(false),
+      );
+
+      final uri = Uri.parse(redirect!);
+      expect(uri.path, AppRoutes.location);
+      expect(uri.queryParameters[AppRoutes.fromQuery], '/explore');
+    });
+
+    test('the location screen itself is never redirected', () {
+      expect(
+        redirectForLocation(location: AppRoutes.location, session: located(false)),
+        isNull,
+      );
+    });
+
+    test('a customer with a location, or one not yet known, browses on', () {
+      expect(redirectForLocation(location: '/home', session: located(true)), isNull);
+      expect(redirectForLocation(location: '/home', session: located(null)), isNull);
+    });
+
+    test('signing out forgets whether a location was set', () {
+      final notifier = located(true)..signedOut();
+
+      expect(notifier.isLocationResolved, isFalse);
+      expect(
+        redirectForLocation(location: '/home', session: notifier),
+        isNull,
+      );
+    });
   });
 }

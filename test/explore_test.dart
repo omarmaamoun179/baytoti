@@ -1,48 +1,65 @@
 import 'dart:async';
 
 import 'package:baytoti/core/domain/failure.dart';
+import 'package:baytoti/core/domain/paged.dart';
+import 'package:baytoti/core/exceptions/app_exceptions.dart';
+import 'package:baytoti/core/network/api_endpoints.dart';
 import 'package:baytoti/core/theme/app_theme.dart';
 import 'package:baytoti/core/utils/money.dart';
 import 'package:baytoti/core/utils/screen_util_scope.dart';
-import 'package:baytoti/features/catalog/data/fixtures/fixture_backend.dart';
 import 'package:baytoti/features/catalog/domain/entities/family_ref.dart';
 import 'package:baytoti/features/catalog/domain/entities/product_badge.dart';
 import 'package:baytoti/features/catalog/domain/entities/product_summary.dart';
+import 'package:baytoti/features/catalog/presentation/widgets/product_card.dart';
 import 'package:baytoti/features/explore/data/datasources/explore_data_source.dart';
-import 'package:baytoti/features/explore/data/models/explore_model.dart';
 import 'package:baytoti/features/explore/data/repositories/explore_repository_impl.dart';
-import 'package:baytoti/features/explore/domain/entities/explore_feed.dart';
+import 'package:baytoti/features/explore/domain/entities/explore_tab.dart';
 import 'package:baytoti/features/explore/domain/repositories/explore_repository.dart';
 import 'package:baytoti/features/explore/domain/usecases/explore_usecases.dart';
 import 'package:baytoti/features/explore/presentation/cubit/explore_cubit.dart';
 import 'package:baytoti/features/explore/presentation/cubit/explore_state.dart';
 import 'package:baytoti/features/explore/presentation/widgets/explore_tab_strip.dart';
-import 'package:baytoti/features/explore/presentation/widgets/most_viewed_tile.dart';
-import 'package:baytoti/features/explore/presentation/widgets/rising_row.dart';
+import 'package:baytoti/features/explore/presentation/widgets/product_grid_sliver.dart';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'support/fake_network.dart';
+
+const String _firstPage = 'cloak/products_page.json';
+const String _lastPage = 'explore/products_last_page.cloak.json';
+
+class _OfflineNetwork extends FakeNetwork {
+  @override
+  Future<Response> get(
+    String url, {
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    bool skipAuthRefresh = false,
+  }) async {
+    calls.add(FakeCall('GET', url, queryParameters, null, headers));
+    throw const ConnectionException();
+  }
+}
 
 ProductSummary _product(String id) => ProductSummary(
       id: id,
       name: 'Product $id',
-      family: const FamilyRef(id: 'fam_1', name: 'Family'),
-      price: const Money(fils: 1000, display: '1.000 KWD'),
+      family: const FamilyRef(id: '1', name: 'Family'),
+      price: const Money(fils: 1000),
     );
 
-ExploreFeed _feed(List<String> ids, {int lastPage = 1}) => ExploreFeed(
-      hashtags: const ['#tag'],
-      rising: [
-        RisingProduct(rank: 1, product: _product(ids.first), growth: '+10%'),
-      ],
-      mostViewed: [for (final id in ids) _product(id)],
+Paged<ProductSummary> _page(List<String> ids, {int lastPage = 1}) => Paged(
+      items: [for (final id in ids) _product(id)],
       lastPage: lastPage,
     );
 
 class _Call {
   final ExploreTab tab;
-  final int? page;
-  final Completer<Either<Failure, ExploreFeed>> completer = Completer();
+  final int page;
+  final Completer<Either<Failure, Paged<ProductSummary>>> completer =
+      Completer();
 
   _Call(this.tab, this.page);
 }
@@ -51,9 +68,9 @@ class _FakeExploreRepository implements ExploreRepository {
   final List<_Call> calls = [];
 
   @override
-  Future<Either<Failure, ExploreFeed>> getExplore(
+  Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     ExploreTab tab, {
-    int? page,
+    int page = 1,
   }) {
     final call = _Call(tab, page);
     calls.add(call);
@@ -64,270 +81,298 @@ class _FakeExploreRepository implements ExploreRepository {
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
-  group('the explore contract', () {
-    final backend = FixtureBackend();
+  late FakeNetwork network;
+  late ExploreRepositoryImpl repository;
 
-    test('the fixture feed parses through the model', () {
-      final feed = ExploreFeedModel.fromJson(backend.explore('daily', 'en'));
+  setUp(() {
+    network = FakeNetwork()
+      ..replySample('GET', ApiEndPoint.products, _firstPage);
+    repository = ExploreRepositoryImpl(ExploreRemoteDataSource(network));
+  });
 
-      expect(feed.hashtags, hasLength(6));
-      expect(feed.hashtags.first, '#kuwaitisweets');
-      expect(feed.rising, hasLength(4));
-      expect([for (final r in feed.rising) r.rank], [1, 2, 3, 4]);
-      expect(feed.rising.first.product.id, 'prd_1');
-      expect(feed.rising.first.product.badge, ProductBadge.bestSeller);
-      expect(feed.rising.first.growth, '+38%');
-      expect(feed.rising.first.product.price.fils, 4250);
-      expect(feed.mostViewed, hasLength(9));
-      expect(feed.currentPage, 1);
-      expect(feed.hasMore, isFalse);
-    });
-
-    test('every tab answers in the same shape', () {
+  group('explore is GET /products', () {
+    test('each tab asks for a sort or filter the engine accepts', () async {
+      final sent = <ExploreTab, Map<String, dynamic>?>{};
       for (final tab in ExploreTab.values) {
-        final feed = ExploreFeedModel.fromJson(
-          backend.explore(tab.wire, 'ar'),
-        );
-
-        expect(feed.rising, isNotEmpty, reason: tab.wire);
-        expect(feed.mostViewed, isNotEmpty, reason: tab.wire);
+        await repository.getProducts(tab);
+        expect(network.last('GET').url, ApiEndPoint.products);
+        sent[tab] = network.last('GET').query;
       }
+
+      expect(sent, {
+        ExploreTab.newest: {'sort': 'newest', 'page': 1, 'per_page': 20},
+        ExploreTab.featured: {'featured': 1, 'page': 1, 'per_page': 20},
+        ExploreTab.priceLow: {'sort': 'price_asc', 'page': 1, 'per_page': 20},
+      });
+      expect(ExploreTab.initial, ExploreTab.newest);
     });
 
-    test('the new tab ranks only new products', () {
-      final feed = ExploreFeedModel.fromJson(backend.explore('new', 'en'));
+    test('a later page carries its number', () async {
+      await repository.getProducts(ExploreTab.priceLow, page: 3);
 
+      expect(network.last('GET').query, {
+        'sort': 'price_asc',
+        'page': 3,
+        'per_page': 20,
+      });
+    });
+
+    test('the engine\'s product page parses with its paging', () async {
+      final page = (await repository.getProducts(ExploreTab.newest))
+          .getOrElse(() => throw StateError('refused'));
+      final first = page.items.first;
+
+      expect(page.items, hasLength(2));
+      expect(page.currentPage, 1);
+      expect(page.lastPage, 18);
+      expect(page.total, 36);
+      expect(page.hasMore, isTrue);
+      expect(page.nextPage, 2);
+
+      expect(first.id, '32');
+      expect(first.slug, 'aabay-mnasbat-fakhr-6');
+      expect(first.name, 'عباية مناسبات فاخرة 6');
+      expect(first.price.fils, 55000);
+      expect(first.compareAt?.fils, 65000);
+      expect(first.family.slug, 'mkhml-6');
+      expect(first.family.name, 'مخمل');
+      expect(first.images.first.url, contains('photo-1551488831'));
+      expect(first.badge, ProductBadge.featured);
+    });
+
+    test('the last page says there is no more', () async {
+      network.replySample('GET', ApiEndPoint.products, _lastPage);
+
+      final page = (await repository.getProducts(ExploreTab.newest, page: 18))
+          .getOrElse(() => throw StateError('refused'));
+
+      expect(page.currentPage, 18);
+      expect(page.hasMore, isFalse);
+      expect(page.items.map((p) => p.id), ['2', '1']);
+    });
+
+    test('a 500 and a 401 are failures with their status', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+      final server = (await repository.getProducts(ExploreTab.newest))
+          .fold((f) => f, (_) => throw StateError('accepted'));
+
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'betouti/unauthenticated_401.json',
+        status: 401,
+      );
+      final refused = (await repository.getProducts(ExploreTab.newest))
+          .fold((f) => f, (_) => throw StateError('accepted'));
+
+      expect(server, isA<ServerFailure>());
+      expect(server.statusCode, 500);
+      expect(server.message, 'server_error');
+      expect(refused.statusCode, 401);
+    });
+
+    test('offline is a network failure', () async {
+      final offline = ExploreRepositoryImpl(
+        ExploreRemoteDataSource(_OfflineNetwork()),
+      );
+
+      final failure = (await offline.getProducts(ExploreTab.newest))
+          .fold((f) => f, (_) => throw StateError('accepted'));
+
+      expect(failure, isA<NetworkFailure>());
+    });
+  });
+
+  group('ExploreCubit on the live shape', () {
+    late ExploreCubit cubit;
+
+    setUp(() => cubit = ExploreCubit(GetExploreUseCase(repository)));
+    tearDown(() => cubit.close());
+
+    test('a first load lands as loaded with the newest products', () async {
+      await cubit.load();
+
+      expect(cubit.state.status, ExploreStatus.loaded);
+      expect(cubit.state.tab, ExploreTab.newest);
+      expect(cubit.state.productsTab, ExploreTab.newest);
+      expect(cubit.state.products!.items, hasLength(2));
+      expect(network.last('GET').query?['sort'], 'newest');
+    });
+
+    test('the next page appends, then paging stops at the last page',
+        () async {
+      await cubit.load();
+      network.replySample('GET', ApiEndPoint.products, _lastPage);
+
+      await cubit.loadMore();
+
+      expect(network.last('GET').query?['page'], 2);
       expect(
-        feed.rising.map((r) => r.product.badge).toSet(),
-        {ProductBadge.newArrival},
+        cubit.state.products!.items.map((p) => p.id),
+        ['32', '22', '2', '1'],
       );
+      expect(cubit.state.products!.hasMore, isFalse);
+
+      await cubit.loadMore();
+      expect(network.calls, hasLength(2));
     });
 
-    test('the mock source answers through the repository', () async {
-      final repository = ExploreRepositoryImpl(
-        ExploreMockDataSource(FixtureBackend(), () async => 'ar'),
+    test('a failed first load is an error screen', () async {
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'betouti/products_guest_500.json',
+        status: 500,
       );
 
-      final result = await repository.getExplore(ExploreTab.weekly);
-      final feed = result.getOrElse(() => throw StateError('failed'));
+      await cubit.load();
 
-      expect(feed.rising.first.product.id, 'prd_5');
-      expect(feed.rising.first.product.name, 'خبز التنور الطازج');
-      expect(feed.hashtags.first, '#حلويات_كويتية');
+      expect(cubit.state.status, ExploreStatus.error);
+      expect(cubit.state.errorMessage, 'server_error');
+      expect(cubit.state.products, isNull);
+    });
+
+    test('a failed tab switch keeps the products and their tab', () async {
+      await cubit.load();
+      network.replySample(
+        'GET',
+        ApiEndPoint.products,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+
+      cubit.selectTab(ExploreTab.featured);
+      expect(cubit.state.tab, ExploreTab.featured);
+      expect(cubit.state.isSwitching, isTrue);
+      await _settle();
+
+      expect(network.last('GET').query?['featured'], 1);
+      expect(cubit.state.status, ExploreStatus.loaded);
+      expect(cubit.state.tab, ExploreTab.newest);
+      expect(cubit.state.productsTab, ExploreTab.newest);
+      expect(cubit.state.products!.items.first.id, '32');
+      expect(cubit.state.errorMessage, 'server_error');
     });
   });
 
-  group('presentation helpers', () {
-    test('ranks print Arabic-Indic digits in Arabic', () {
-      expect(rankLabel(1, 'ar'), '١');
-      expect(rankLabel(4, 'ar'), '٤');
-      expect(rankLabel(12, 'ar'), '١٢');
-      expect(rankLabel(3, 'en'), '3');
-    });
-
-    test('a most-viewed tile shows the first word of the name', () {
-      expect(MostViewedTile.labelOf('Cardamom date cake'), 'Cardamom');
-      expect(MostViewedTile.labelOf('  كيك التمر بالهيل'), 'كيك');
-    });
-  });
-
-  group('ExploreCubit', () {
-    late _FakeExploreRepository repository;
+  group('ExploreCubit ordering', () {
+    late _FakeExploreRepository fake;
     late ExploreCubit cubit;
 
     setUp(() {
-      repository = _FakeExploreRepository();
-      cubit = ExploreCubit(GetExploreUseCase(repository));
+      fake = _FakeExploreRepository();
+      cubit = ExploreCubit(GetExploreUseCase(fake));
     });
 
     tearDown(() => cubit.close());
 
-    test('a first load lands as loaded with the daily feed', () async {
-      final load = cubit.load();
-      expect(cubit.state.status, ExploreStatus.loading);
-      expect(repository.calls.single.tab, ExploreTab.daily);
-
-      repository.calls.single.completer.complete(Right(_feed(['a', 'b'])));
-      await load;
-
-      expect(cubit.state.status, ExploreStatus.loaded);
-      expect(cubit.state.feedTab, ExploreTab.daily);
-      expect(cubit.state.feed!.mostViewed, hasLength(2));
-    });
-
-    test('a failed first load is an error screen', () async {
-      final load = cubit.load();
-      repository.calls.single.completer.complete(
-        const Left(NetworkFailure(message: 'offline')),
-      );
-      await load;
-
-      expect(cubit.state.status, ExploreStatus.error);
-      expect(cubit.state.errorMessage, 'offline');
-      expect(cubit.state.feed, isNull);
-    });
-
-    test('a failed tab switch keeps the feed and its tab', () async {
-      final first = cubit.load();
-      repository.calls.first.completer.complete(Right(_feed(['a'])));
-      await first;
-
-      cubit.selectTab(ExploreTab.weekly);
-      expect(cubit.state.tab, ExploreTab.weekly);
-      expect(cubit.state.isSwitching, isTrue);
-
-      repository.calls.last.completer.complete(
-        const Left(ServerFailure(message: 'explore_failed')),
-      );
-      await _settle();
-
-      expect(cubit.state.status, ExploreStatus.loaded);
-      expect(cubit.state.tab, ExploreTab.daily);
-      expect(cubit.state.feedTab, ExploreTab.daily);
-      expect(cubit.state.feed!.mostViewed.single.id, 'a');
-      expect(cubit.state.errorMessage, 'explore_failed');
-    });
-
     test('an older tab answering late is dropped', () async {
       final first = cubit.load();
-      repository.calls.first.completer.complete(Right(_feed(['a'])));
+      fake.calls.first.completer.complete(Right(_page(['a'])));
       await first;
 
-      cubit.selectTab(ExploreTab.weekly);
-      cubit.selectTab(ExploreTab.fresh);
-      final weekly = repository.calls[1];
-      final fresh = repository.calls[2];
+      cubit.selectTab(ExploreTab.featured);
+      cubit.selectTab(ExploreTab.priceLow);
+      final featured = fake.calls[1];
+      final priceLow = fake.calls[2];
 
-      fresh.completer.complete(Right(_feed(['new'])));
+      priceLow.completer.complete(Right(_page(['cheap'])));
       await _settle();
-      weekly.completer.complete(Right(_feed(['weekly'])));
+      featured.completer.complete(Right(_page(['featured'])));
       await _settle();
 
-      expect(cubit.state.tab, ExploreTab.fresh);
-      expect(cubit.state.feedTab, ExploreTab.fresh);
-      expect(cubit.state.feed!.mostViewed.single.id, 'new');
+      expect(cubit.state.tab, ExploreTab.priceLow);
+      expect(cubit.state.productsTab, ExploreTab.priceLow);
+      expect(cubit.state.products!.items.single.id, 'cheap');
     });
 
     test('tapping the selected tab does not reload', () async {
       final first = cubit.load();
-      repository.calls.first.completer.complete(Right(_feed(['a'])));
+      fake.calls.first.completer.complete(Right(_page(['a'])));
       await first;
 
-      cubit.selectTab(ExploreTab.daily);
+      cubit.selectTab(ExploreTab.newest);
 
-      expect(repository.calls, hasLength(1));
+      expect(fake.calls, hasLength(1));
     });
 
-    test('the next page appends to most viewed', () async {
+    test('one next page is asked for at a time', () async {
       final first = cubit.load();
-      repository.calls.first.completer.complete(
-        Right(_feed(['a', 'b'], lastPage: 2)),
-      );
+      fake.calls.first.completer.complete(Right(_page(['a'], lastPage: 2)));
       await first;
 
       final more = cubit.loadMore();
       cubit.loadMore();
-      expect(repository.calls, hasLength(2));
-      expect(repository.calls.last.page, 2);
+      expect(fake.calls, hasLength(2));
+      expect(fake.calls.last.page, 2);
+      expect(fake.calls.last.tab, ExploreTab.newest);
 
-      repository.calls.last.completer.complete(Right(_feed(['c'])));
-      await more;
-
-      expect(
-        cubit.state.feed!.mostViewed.map((p) => p.id),
-        ['a', 'b', 'c'],
-      );
-      expect(cubit.state.feed!.hasMore, isFalse);
-
-      await cubit.loadMore();
-      expect(repository.calls, hasLength(2));
-    });
-
-    test('a failed next page keeps the feed', () async {
-      final first = cubit.load();
-      repository.calls.first.completer.complete(
-        Right(_feed(['a'], lastPage: 2)),
-      );
-      await first;
-
-      final more = cubit.loadMore();
-      repository.calls.last.completer.complete(
+      fake.calls.last.completer.complete(
         const Left(NetworkFailure(message: 'offline')),
       );
       await more;
 
       expect(cubit.state.status, ExploreStatus.loaded);
       expect(cubit.state.isLoadingMore, isFalse);
-      expect(cubit.state.feed!.mostViewed.single.id, 'a');
+      expect(cubit.state.products!.items.single.id, 'a');
       expect(cubit.state.errorMessage, 'offline');
     });
   });
 
   group('explore widgets', () {
-    Future<void> pump(WidgetTester tester, List<Widget> slivers) async {
+    testWidgets('the tabs and a product grid lay out at phone width',
+        (tester) async {
       tester.view.physicalSize = const Size(360, 780);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
+      final selected = <ExploreTab>[];
+      final taps = <String>[];
+      final long = ProductSummary(
+        id: 'long',
+        name: 'A very long product name that has to wrap onto another line',
+        family: const FamilyRef(id: '1', name: 'A family with a long name'),
+        price: const Money(fils: 12500),
+      );
 
       await tester.pumpWidget(ScreenUtilScope(
         child: Builder(
           builder: (_) => MaterialApp(
             theme: AppTheme.light,
-            home: Scaffold(body: CustomScrollView(slivers: slivers)),
+            home: Scaffold(
+              body: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: ExploreTabStrip(
+                      selected: ExploreTab.newest,
+                      onSelect: selected.add,
+                    ),
+                  ),
+                  ProductGridSliver(
+                    products: [long, _product('b'), _product('c')],
+                    onOpen: (product) => taps.add('open ${product.id}'),
+                    onAdd: (product) => taps.add('add ${product.id}'),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ));
-    }
-
-    testWidgets('tabs, a rising row and the grid lay out at phone width',
-        (tester) async {
-      final selected = <ExploreTab>[];
-      final opened = <String>[];
-      final long = ProductSummary(
-        id: 'long',
-        name: 'A very long product name that has to wrap onto another line',
-        family: const FamilyRef(id: 'fam_1', name: 'A family with a long name'),
-        price: const Money(fils: 12500, display: '12.500 KWD'),
-      );
-
-      await pump(tester, [
-        SliverToBoxAdapter(
-          child: ExploreTabStrip(
-            selected: ExploreTab.daily,
-            onSelect: selected.add,
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: RisingRow(
-            item: RisingProduct(rank: 1, product: long, growth: '+38%'),
-            languageCode: 'ar',
-            onTap: () => opened.add('rising'),
-          ),
-        ),
-        SliverGrid.count(
-          crossAxisCount: 3,
-          mainAxisSpacing: 2,
-          crossAxisSpacing: 2,
-          children: [
-            for (final id in ['a', 'b', 'c', 'd'])
-              MostViewedTile(
-                product: _product(id),
-                onTap: () => opened.add(id),
-              ),
-          ],
-        ),
-      ]);
 
       expect(tester.takeException(), isNull);
-      expect(find.text('١'), findsOneWidget);
-      expect(find.text('+38%'), findsOneWidget);
+      expect(find.byType(ProductCard), findsNWidgets(3));
 
-      await tester.tap(find.text('explore_tab_weekly'));
-      await tester.tap(find.text('+38%'));
-      await tester.tap(find.byType(MostViewedTile).at(2));
+      await tester.tap(find.text('explore_tab_featured'));
+      await tester.tap(find.text('Product c'));
+      await tester.tap(find.byType(AddButton).first);
 
-      expect(selected, [ExploreTab.weekly]);
-      expect(opened, ['rising', 'c']);
+      expect(selected, [ExploreTab.featured]);
+      expect(taps, ['open c', 'add long']);
     });
   });
 }

@@ -97,13 +97,11 @@ class _FamilyView extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                FamilyHeader(
-                  family: family,
-                  onFollow: () {
-                    if (requireSignIn(context)) cubit.toggleFollow();
-                  },
+                FamilyHeader(family: family),
+                FamilyStats(
+                  productCount: state.productCount,
+                  rating: family.rating,
                 ),
-                FamilyStats(family: family),
                 if (products.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
@@ -120,7 +118,7 @@ class _FamilyView extends StatelessWidget {
                   const SizedBox(height: FamilyProductRow.gap),
               itemBuilder: (context, row) => FamilyProductRow(
                 products: products.skip(row * 2).take(2).toList(),
-                onOpen: (product) => context.openProduct(product.id),
+                onOpen: (product) => context.openProduct(product.slug),
                 onAdd: (product) => addToCart(context, product.id),
               ),
             ),

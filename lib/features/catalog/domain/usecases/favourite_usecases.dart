@@ -3,7 +3,19 @@ import 'package:equatable/equatable.dart';
 
 import '../../../../core/domain/failure.dart';
 import '../../../../core/domain/usecase.dart';
+import '../entities/product_summary.dart';
 import '../repositories/favourites_repository.dart';
+
+class GetFavouritesUseCase
+    implements UseCase<Either<Failure, List<ProductSummary>>, NoParams> {
+  final FavouritesRepository _repository;
+
+  GetFavouritesUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, List<ProductSummary>>> call(NoParams params) =>
+      _repository.getFavourites();
+}
 
 class SetFavouriteParams extends Equatable {
   final String productId;

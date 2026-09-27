@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "message": "Logged in successfully.",
+  "data": {
+    "user": {
+      "id": 41,
+      "name": "مريم الكندري",
+      "email": "mariam@example.com",
+      "phone": "96555512345",
+      "avatar": null,
+      "status": true,
+      "email_verified_at": null,
+      "created_at": "2026-09-27T20:00:00.000000Z"
+    },
+    "token": "12|verified-token"
+  },
+  "errors": null
+}

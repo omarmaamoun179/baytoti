@@ -34,13 +34,15 @@ class NotificationsCubit extends BaseCubit<NotificationsState> {
         status: hadList ? null : NotificationsStatus.error,
         errorMessage: failure.message,
       )),
-      (feed) {
+      (page) {
         emit(state.copyWith(
           status: NotificationsStatus.loaded,
-          page: feed.page,
+          page: page,
           isLoadingMore: false,
         ));
-        if (feed.hasUnread) unawaited(_markRead(NoParams()));
+        if (page.items.any((notification) => !notification.isRead)) {
+          unawaited(_markRead(NoParams()));
+        }
       },
     );
   }
@@ -66,8 +68,8 @@ class NotificationsCubit extends BaseCubit<NotificationsState> {
         isLoadingMore: false,
         errorMessage: failure.message,
       )),
-      (feed) => emit(state.copyWith(
-        page: state.page.append(feed.page),
+      (page) => emit(state.copyWith(
+        page: state.page.append(page),
         isLoadingMore: false,
       )),
     );

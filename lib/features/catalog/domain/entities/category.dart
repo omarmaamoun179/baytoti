@@ -26,17 +26,21 @@ enum CategoryIcon {
 
 class Category extends Equatable {
   final String id;
+  final String slug;
   final String name;
   final CategoryIcon icon;
+  final String? imageUrl;
   final int productCount;
 
   const Category({
     required this.id,
+    String? slug,
     required this.name,
     required this.icon,
+    this.imageUrl,
     this.productCount = 0,
-  });
+  }) : slug = slug ?? id;
 
   @override
-  List<Object?> get props => [id, name, icon, productCount];
+  List<Object?> get props => [id, slug, name, icon, imageUrl, productCount];
 }

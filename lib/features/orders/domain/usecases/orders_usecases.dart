@@ -26,14 +26,3 @@ class GetOrderUseCase implements UseCase<Either<Failure, OrderDetail>, String> {
   Future<Either<Failure, OrderDetail>> call(String orderId) =>
       _repository.getOrder(orderId);
 }
-
-class RateOrderUseCase
-    implements UseCase<Either<Failure, Unit>, RateOrderParams> {
-  final OrdersRepository _repository;
-
-  RateOrderUseCase(this._repository);
-
-  @override
-  Future<Either<Failure, Unit>> call(RateOrderParams params) =>
-      _repository.rateOrder(params);
-}

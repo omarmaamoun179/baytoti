@@ -15,18 +15,18 @@ class GetFamilyUseCase
   GetFamilyUseCase(this._repository);
 
   @override
-  Future<Either<Failure, FamilyProfile>> call(String familyId) =>
-      _repository.getFamily(familyId);
+  Future<Either<Failure, FamilyProfile>> call(String slug) =>
+      _repository.getFamily(slug);
 }
 
 class FamilyProductsParams extends Equatable {
-  final String familyId;
+  final String slug;
   final int? page;
 
-  const FamilyProductsParams({required this.familyId, this.page});
+  const FamilyProductsParams({required this.slug, this.page});
 
   @override
-  List<Object?> get props => [familyId, page];
+  List<Object?> get props => [slug, page];
 }
 
 class GetFamilyProductsUseCase
@@ -40,26 +40,5 @@ class GetFamilyProductsUseCase
   Future<Either<Failure, Paged<ProductSummary>>> call(
     FamilyProductsParams params,
   ) =>
-      _repository.getProducts(params.familyId, page: params.page);
-}
-
-class SetFollowingParams extends Equatable {
-  final String familyId;
-  final bool following;
-
-  const SetFollowingParams({required this.familyId, required this.following});
-
-  @override
-  List<Object?> get props => [familyId, following];
-}
-
-class SetFollowingUseCase
-    implements UseCase<Either<Failure, bool>, SetFollowingParams> {
-  final FamilyRepository _repository;
-
-  SetFollowingUseCase(this._repository);
-
-  @override
-  Future<Either<Failure, bool>> call(SetFollowingParams params) =>
-      _repository.setFollowing(params.familyId, params.following);
+      _repository.getProducts(params.slug, page: params.page);
 }

@@ -7,6 +7,8 @@ enum ProductStatus { initial, loading, loaded, error }
 class ProductState extends Equatable {
   final ProductStatus status;
   final ProductDetail? product;
+  final List<Review> reviews;
+  final bool isLoadingReviews;
   final int quantity;
   final bool isSavingFavourite;
   final String? errorMessage;
@@ -14,6 +16,8 @@ class ProductState extends Equatable {
   const ProductState({
     this.status = ProductStatus.initial,
     this.product,
+    this.reviews = const [],
+    this.isLoadingReviews = false,
     this.quantity = 1,
     this.isSavingFavourite = false,
     this.errorMessage,
@@ -29,6 +33,8 @@ class ProductState extends Equatable {
   ProductState copyWith({
     ProductStatus? status,
     ProductDetail? product,
+    List<Review>? reviews,
+    bool? isLoadingReviews,
     int? quantity,
     bool? isSavingFavourite,
     String? errorMessage,
@@ -36,6 +42,8 @@ class ProductState extends Equatable {
     return ProductState(
       status: status ?? this.status,
       product: product ?? this.product,
+      reviews: reviews ?? this.reviews,
+      isLoadingReviews: isLoadingReviews ?? this.isLoadingReviews,
       quantity: quantity ?? this.quantity,
       isSavingFavourite: isSavingFavourite ?? this.isSavingFavourite,
       errorMessage: errorMessage,
@@ -43,6 +51,13 @@ class ProductState extends Equatable {
   }
 
   @override
-  List<Object?> get props =>
-      [status, product, quantity, isSavingFavourite, errorMessage];
+  List<Object?> get props => [
+        status,
+        product,
+        reviews,
+        isLoadingReviews,
+        quantity,
+        isSavingFavourite,
+        errorMessage,
+      ];
 }

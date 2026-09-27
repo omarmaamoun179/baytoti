@@ -1,18 +1,14 @@
 part of 'di_exports.dart';
 
-const bool useMockData = bool.fromEnvironment(
-  'USE_MOCK_DATA',
-  defaultValue: true,
-);
-
 Future<void> initDependencies() async {
   await _registerAppInfo();
   await _registerStorage();
   _registerNetwork();
   _registerAppCubits();
-  _registerFixtures();
   _registerCatalogFeature();
   _registerAuthFeature();
+  _registerLocationFeature();
+  _registerAddressesFeature();
   _registerCartFeature();
   _registerHomeFeature();
   _registerNotificationsFeature();
@@ -77,18 +73,9 @@ void _registerAppCubits() {
   sl.registerSingleton<SessionNotifier>(SessionNotifier());
 }
 
-void _registerFixtures() {
-  sl.registerLazySingleton<FixtureBackend>(FixtureBackend.new);
-  sl.registerSingleton<ContentLanguage>(
-    () async => await sl<NetworkServiceUtil>().getLanguageCode() ?? 'ar',
-  );
-}
-
 void _registerCatalogFeature() {
   sl.registerLazySingleton<FavouritesDataSource>(
-    () => useMockData
-        ? FavouritesMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : FavouritesRemoteDataSource(sl<NetworkService>()),
+    () => FavouritesRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<FavouritesRepository>(
     () => FavouritesRepositoryImpl(sl<FavouritesDataSource>()),
@@ -96,13 +83,15 @@ void _registerCatalogFeature() {
   sl.registerLazySingleton(
     () => SetFavouriteUseCase(sl<FavouritesRepository>()),
   );
+  sl.registerLazySingleton(
+    () => GetFavouritesUseCase(sl<FavouritesRepository>()),
+  );
+  sl.registerFactory(() => FavouritesCubit(sl(), sl()));
 }
 
 void _registerAuthFeature() {
   sl.registerLazySingleton<AuthDataSource>(
-    () => useMockData
-        ? AuthMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : AuthRemoteDataSource(sl<NetworkService>()),
+    () => AuthRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<AuthLocalDataSource>(
     () => AuthLocalDataSourceImpl(sl<TokenStore>(), sl<CacheService>()),
@@ -131,11 +120,70 @@ void _registerAuthFeature() {
   );
 }
 
+void _registerLocationFeature() {
+  sl.registerLazySingleton<LocationDataSource>(
+    () => LocationRemoteDataSource(sl<NetworkService>()),
+  );
+  sl.registerLazySingleton<LocationLocalDataSource>(
+    () => LocationLocalDataSourceImpl(sl<CacheService>()),
+  );
+  sl.registerLazySingleton<LocationRepository>(
+    () => LocationRepositoryImpl(
+      sl<LocationDataSource>(),
+      sl<LocationLocalDataSource>(),
+    ),
+  );
+
+  sl.registerLazySingleton(() => GetCountriesUseCase(sl<LocationRepository>()));
+  sl.registerLazySingleton(
+    () => GetGovernoratesUseCase(sl<LocationRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetLocationContextUseCase(sl<LocationRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => GetCachedLocationUseCase(sl<LocationRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => SetManualLocationUseCase(sl<LocationRepository>()),
+  );
+  sl.registerLazySingleton(() => ForgetLocationUseCase(sl<LocationRepository>()));
+
+  sl.registerLazySingleton<LocationCubit>(
+    () => LocationCubit(sl(), sl(), sl<SessionNotifier>()),
+  );
+  sl.registerFactory(() => LocationSetupCubit(sl(), sl(), sl()));
+}
+
+void _registerAddressesFeature() {
+  sl.registerLazySingleton<AddressesDataSource>(
+    () => AddressesRemoteDataSource(sl<NetworkService>()),
+  );
+  sl.registerLazySingleton<AddressesRepository>(
+    () => AddressesRepositoryImpl(sl<AddressesDataSource>()),
+  );
+
+  sl.registerLazySingleton(() => GetAddressesUseCase(sl<AddressesRepository>()));
+  sl.registerLazySingleton(
+    () => CreateAddressUseCase(sl<AddressesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => UpdateAddressUseCase(sl<AddressesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => DeleteAddressUseCase(sl<AddressesRepository>()),
+  );
+  sl.registerLazySingleton(
+    () => SetDefaultAddressUseCase(sl<AddressesRepository>()),
+  );
+
+  sl.registerFactory(() => AddressesCubit(sl(), sl(), sl()));
+  sl.registerFactory(() => AddressFormCubit(sl(), sl()));
+}
+
 void _registerCartFeature() {
   sl.registerLazySingleton<CartDataSource>(
-    () => useMockData
-        ? CartMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : CartRemoteDataSource(sl<NetworkService>()),
+    () => CartRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<CartRepository>(
     () => CartRepositoryImpl(sl<CartDataSource>()),
@@ -145,18 +193,15 @@ void _registerCartFeature() {
   sl.registerLazySingleton(() => AddToCartUseCase(sl<CartRepository>()));
   sl.registerLazySingleton(() => UpdateCartItemUseCase(sl<CartRepository>()));
   sl.registerLazySingleton(() => RemoveCartItemUseCase(sl<CartRepository>()));
-  sl.registerLazySingleton(() => ApplyCouponUseCase(sl<CartRepository>()));
 
   sl.registerLazySingleton<CartCubit>(
-    () => CartCubit(sl(), sl(), sl(), sl(), sl(), sl<SessionNotifier>()),
+    () => CartCubit(sl(), sl(), sl(), sl(), sl<SessionNotifier>()),
   );
 }
 
 void _registerHomeFeature() {
   sl.registerLazySingleton<HomeDataSource>(
-    () => useMockData
-        ? HomeMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : HomeRemoteDataSource(sl<NetworkService>()),
+    () => HomeRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<HomeRepository>(
     () => HomeRepositoryImpl(sl<HomeDataSource>()),
@@ -167,12 +212,7 @@ void _registerHomeFeature() {
 
 void _registerNotificationsFeature() {
   sl.registerLazySingleton<NotificationsDataSource>(
-    () => useMockData
-        ? NotificationsMockDataSource(
-            sl<FixtureBackend>(),
-            sl<ContentLanguage>(),
-          )
-        : NotificationsRemoteDataSource(sl<NetworkService>()),
+    () => NotificationsRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<NotificationsRepository>(
     () => NotificationsRepositoryImpl(sl<NotificationsDataSource>()),
@@ -190,9 +230,7 @@ void _registerNotificationsFeature() {
 
 void _registerProfileFeature() {
   sl.registerLazySingleton<ProfileDataSource>(
-    () => useMockData
-        ? ProfileMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : ProfileRemoteDataSource(sl<NetworkService>()),
+    () => ProfileRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<ProfileRepository>(
     () => ProfileRepositoryImpl(sl<ProfileDataSource>()),
@@ -205,9 +243,7 @@ void _registerProfileFeature() {
 
 void _registerExploreFeature() {
   sl.registerLazySingleton<ExploreDataSource>(
-    () => useMockData
-        ? ExploreMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : ExploreRemoteDataSource(sl<NetworkService>()),
+    () => ExploreRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<ExploreRepository>(
     () => ExploreRepositoryImpl(sl<ExploreDataSource>()),
@@ -220,9 +256,7 @@ void _registerExploreFeature() {
 
 void _registerSearchFeature() {
   sl.registerLazySingleton<SearchDataSource>(
-    () => useMockData
-        ? SearchMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : SearchRemoteDataSource(sl<NetworkService>()),
+    () => SearchRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<SearchRepository>(
     () => SearchRepositoryImpl(sl<SearchDataSource>()),
@@ -231,17 +265,22 @@ void _registerSearchFeature() {
   sl.registerLazySingleton(
     () => SearchProductsUseCase(sl<SearchRepository>()),
   );
+  sl.registerLazySingleton(
+    () => GetSearchCategoriesUseCase(sl<SearchRepository>()),
+  );
 
   sl.registerFactory(
-    () => SearchCubit(sl<SearchProductsUseCase>(), sl<SetFavouriteUseCase>()),
+    () => SearchCubit(
+      sl<SearchProductsUseCase>(),
+      sl<GetSearchCategoriesUseCase>(),
+      sl<SetFavouriteUseCase>(),
+    ),
   );
 }
 
 void _registerFamilyFeature() {
   sl.registerLazySingleton<FamilyDataSource>(
-    () => useMockData
-        ? FamilyMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : FamilyRemoteDataSource(sl<NetworkService>()),
+    () => FamilyRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<FamilyRepository>(
     () => FamilyRepositoryImpl(sl<FamilyDataSource>()),
@@ -251,46 +290,47 @@ void _registerFamilyFeature() {
   sl.registerLazySingleton(
     () => GetFamilyProductsUseCase(sl<FamilyRepository>()),
   );
-  sl.registerLazySingleton(() => SetFollowingUseCase(sl<FamilyRepository>()));
 
   sl.registerFactory(
-    () => FamilyCubit(
-      sl<GetFamilyUseCase>(),
-      sl<GetFamilyProductsUseCase>(),
-      sl<SetFollowingUseCase>(),
-    ),
+    () => FamilyCubit(sl<GetFamilyUseCase>(), sl<GetFamilyProductsUseCase>()),
   );
 }
 
 void _registerProductFeature() {
   sl.registerLazySingleton<ProductDataSource>(
-    () => useMockData
-        ? ProductMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : ProductRemoteDataSource(sl<NetworkService>()),
+    () => ProductRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<ProductRepository>(
-    () => ProductRepositoryImpl(sl<ProductDataSource>()),
+    () => ProductRepositoryImpl(
+      sl<ProductDataSource>(),
+      sl<FavouritesDataSource>(),
+    ),
   );
 
   sl.registerLazySingleton(() => GetProductUseCase(sl<ProductRepository>()));
+  sl.registerLazySingleton(
+    () => GetProductReviewsUseCase(sl<ProductRepository>()),
+  );
 
   sl.registerFactory(
-    () => ProductCubit(sl<GetProductUseCase>(), sl<SetFavouriteUseCase>()),
+    () => ProductCubit(
+      sl<GetProductUseCase>(),
+      sl<GetProductReviewsUseCase>(),
+      sl<SetFavouriteUseCase>(),
+    ),
   );
 }
 
 void _registerCheckoutFeature() {
   sl.registerLazySingleton<CheckoutDataSource>(
-    () => useMockData
-        ? CheckoutMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : CheckoutRemoteDataSource(sl<NetworkService>()),
+    () => CheckoutRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<CheckoutRepository>(
     () => CheckoutRepositoryImpl(sl<CheckoutDataSource>()),
   );
 
   sl.registerLazySingleton(
-    () => GetCheckoutOptionsUseCase(sl<CheckoutRepository>()),
+    () => GetCheckoutAddressesUseCase(sl<CheckoutRepository>()),
   );
   sl.registerLazySingleton(() => PlaceOrderUseCase(sl<CheckoutRepository>()));
 
@@ -299,9 +339,7 @@ void _registerCheckoutFeature() {
 
 void _registerOrdersFeature() {
   sl.registerLazySingleton<OrdersDataSource>(
-    () => useMockData
-        ? OrdersMockDataSource(sl<FixtureBackend>(), sl<ContentLanguage>())
-        : OrdersRemoteDataSource(sl<NetworkService>()),
+    () => OrdersRemoteDataSource(sl<NetworkService>()),
   );
   sl.registerLazySingleton<OrdersRepository>(
     () => OrdersRepositoryImpl(sl<OrdersDataSource>()),
@@ -309,9 +347,9 @@ void _registerOrdersFeature() {
 
   sl.registerLazySingleton(() => GetOrdersUseCase(sl<OrdersRepository>()));
   sl.registerLazySingleton(() => GetOrderUseCase(sl<OrdersRepository>()));
-  sl.registerLazySingleton(() => RateOrderUseCase(sl<OrdersRepository>()));
 
-  sl.registerFactory(() => OrderCubit(sl(), sl(), sl()));
+  sl.registerFactory(() => OrderCubit(sl(), sl()));
+  sl.registerFactory(() => OrdersCubit(sl()));
 }
 
 Future<void> resetDependencies() => sl.reset();

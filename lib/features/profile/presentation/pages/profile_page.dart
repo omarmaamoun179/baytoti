@@ -11,9 +11,7 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/widgets/app_header.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/confirm_sheet.dart';
-import '../../../../core/widgets/stat_grid.dart';
 import '../../../auth/domain/entities/customer.dart';
-import '../../domain/entities/profile.dart';
 import '../cubit/profile_cubit.dart';
 import '../cubit/profile_state.dart';
 import '../widgets/profile_identity.dart';
@@ -33,15 +31,12 @@ class ProfilePage extends StatelessWidget {
 }
 
 class _ProfileView extends StatelessWidget {
-  static const String _latestOrder = 'latest';
-  static const String _pending = '—';
-
   const _ProfileView();
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
-    final customer = context.select((AuthCubit cubit) => cubit.state.customer);
+    final session = context.select((AuthCubit cubit) => cubit.state.customer);
 
     return Scaffold(
       backgroundColor: p.bg,
@@ -53,19 +48,15 @@ class _ProfileView extends StatelessWidget {
               listeners: [
                 BlocListener<ProfileCubit, ProfileState>(
                   listenWhen: (previous, current) =>
-                      current.profile != null &&
-                      current.profile != previous.profile,
-                  listener: (context, state) => context
-                      .read<AuthCubit>()
-                      .updateCustomer(state.profile!.customer),
+                      current.customer != null &&
+                      current.customer != previous.customer,
+                  listener: (context, state) =>
+                      context.read<AuthCubit>().updateCustomer(state.customer!),
                 ),
                 BlocListener<ProfileCubit, ProfileState>(
                   listenWhen: (_, current) => current.errorMessage != null,
-                  listener: (context, state) => showAppToast(
-                    context,
-                    state.errorMessage!,
-                    isError: true,
-                  ),
+                  listener: (context, state) =>
+                      showAppToast(context, state.errorMessage!, isError: true),
                 ),
               ],
               child: BlocBuilder<ProfileCubit, ProfileState>(
@@ -76,9 +67,8 @@ class _ProfileView extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      _buildIdentity(state.profile, customer),
-                      _buildStats(state.profile?.stats),
-                      ..._buildRows(context, state.profile?.stats),
+                      _buildIdentity(state.customer ?? session),
+                      ..._buildRows(context),
                       const SizedBox(height: 12),
                     ],
                   ),
@@ -91,52 +81,27 @@ class _ProfileView extends StatelessWidget {
     );
   }
 
-  Widget _buildIdentity(Profile? profile, Customer? customer) =>
-      ProfileIdentity(
-        name: profile?.fullName ?? customer?.fullName ?? '',
-        phone: profile?.phone ?? customer?.phone ?? '',
-        avatarUrl: profile?.avatarUrl ?? customer?.avatarUrl,
-      );
+  Widget _buildIdentity(Customer? customer) => ProfileIdentity(
+    name: customer?.fullName ?? '',
+    phone: customer?.phone ?? '',
+    avatarUrl: customer?.avatarUrl,
+  );
 
-  Widget _buildStats(ProfileStats? stats) => StatGrid(
-        items: [
-          StatItem(
-            stats == null ? _pending : '${stats.orderCount}',
-            'profile_stat_orders'.tr(),
-          ),
-          StatItem(
-            stats == null ? _pending : '${stats.favouriteCount}',
-            'profile_stat_favourites'.tr(),
-          ),
-          StatItem(
-            stats == null ? _pending : '${stats.followingCount}',
-            'profile_stat_following'.tr(),
-          ),
-        ],
-      );
-
-  List<Widget> _buildRows(BuildContext context, ProfileStats? stats) => [
+  List<Widget> _buildRows(BuildContext context) => [
         ProfileRow(
           label: 'profile_my_orders'.tr(),
-          meta: stats == null ? null : '${stats.orderCount}',
-          onTap: () => context.openOrder(_latestOrder),
+          onTap: () => context.pushInTab(AppRoutes.orderSegment),
         ),
         ProfileRow(
-          label: 'profile_favourites_following'.tr(),
-          meta: stats == null ? null : '${stats.favouritesAndFollowing}',
-          onTap: () => context.go(AppRoutes.explore),
+          label: 'profile_favourites'.tr(),
+          onTap: () => context.pushInTab(AppRoutes.favouritesSegment),
         ),
         ProfileRow(
           label: 'profile_addresses'.tr(),
-          onTap: () =>
-              context.go('${AppRoutes.cart}/${AppRoutes.checkoutSegment}'),
+          onTap: () => context.pushInTab(AppRoutes.addressesSegment),
         ),
         ProfileRow(
           label: 'profile_notifications'.tr(),
-          onTap: () => context.openNotifications(),
-        ),
-        ProfileRow(
-          label: 'profile_support'.tr(),
           onTap: () => context.openNotifications(),
         ),
         ProfileRow(

@@ -1,7 +1,9 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/domain/failure.dart';
-import '../../domain/entities/explore_feed.dart';
+import '../../../../core/domain/paged.dart';
+import '../../../catalog/domain/entities/product_summary.dart';
+import '../../domain/entities/explore_tab.dart';
 import '../../domain/repositories/explore_repository.dart';
 import '../datasources/explore_data_source.dart';
 
@@ -11,9 +13,9 @@ class ExploreRepositoryImpl implements ExploreRepository {
   ExploreRepositoryImpl(this._dataSource);
 
   @override
-  Future<Either<Failure, ExploreFeed>> getExplore(
+  Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     ExploreTab tab, {
-    int? page,
+    int page = 1,
   }) =>
-      _dataSource.getExplore(tab, page: page);
+      _dataSource.getProducts(tab, page: page);
 }

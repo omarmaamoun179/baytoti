@@ -24,8 +24,4 @@ class CartRepositoryImpl implements CartRepository {
   @override
   Future<Either<Failure, Cart>> removeItem(String itemId) =>
       _dataSource.removeItem(itemId);
-
-  @override
-  Future<Either<Failure, Cart>> applyCoupon(String code) =>
-      _dataSource.applyCoupon(code);
 }

@@ -1,14 +1,23 @@
-import 'constants.dart';
+import 'market.dart';
 import 'validators/validator_logic.dart';
 
-String toE164(String localDigits) =>
-    '$supportedCountryDialCode${digitsOnly(localDigits)}';
+String wirePhone(String phone) => digitsOnly(phone);
 
 String displayPhone(String phone) {
   final digits = digitsOnly(phone);
-  final dial = digitsOnly(supportedCountryDialCode);
-  final local = digits.startsWith(dial) ? digits.substring(dial.length) : null;
+  final market = Market.ofPhone(digits);
+  if (market == null) return phone;
 
-  if (local == null || local.length != localPhoneLength) return phone;
-  return '$supportedCountryDialCode ${local.substring(0, 4)} ${local.substring(4)}';
+  final local = digits.substring(market.dialCode.length - 1);
+  if (local.length != market.nationalLength) return phone;
+
+  final split = switch (market) {
+    Market.kw => [local.substring(0, 4), local.substring(4)],
+    Market.eg => [
+        local.substring(0, 3),
+        local.substring(3, 6),
+        local.substring(6),
+      ],
+  };
+  return '${market.dialCode} ${split.join(' ')}';
 }

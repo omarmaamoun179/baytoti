@@ -1,0 +1,13 @@
+{
+  "success": false,
+  "message": "login مطلوب. (and 1 more error)",
+  "data": null,
+  "errors": {
+    "login": [
+      "login مطلوب."
+    ],
+    "password": [
+      "كلمة السر مطلوب."
+    ]
+  }
+}

@@ -14,11 +14,13 @@ import '../../../../core/widgets/state_views.dart';
 import '../../../cart/presentation/cart_actions.dart';
 import '../../domain/entities/home_feed.dart';
 import '../cubit/home_cubit.dart';
-import '../widgets/best_sellers_grid.dart';
 import '../widgets/category_rail.dart';
-import '../widgets/exhibition_banner.dart';
-import '../widgets/family_rail.dart';
+import '../widgets/home_banner_strip.dart';
 import '../widgets/home_search_bar.dart';
+import '../widgets/home_section.dart';
+import '../widgets/product_grid.dart';
+import '../widgets/promotion_rail.dart';
+import '../widgets/trusted_store_rail.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -93,11 +95,37 @@ class _HomeView extends StatelessWidget {
       ];
     }
 
+    void open(HomeBanner banner) => _openTarget(context, feed, banner.target);
+
     return [
-      if (feed.banner case final banner?) ExhibitionBanner(banner: banner),
+      if (feed.banners.isNotEmpty)
+        HomeBannerStrip(banners: feed.banners, onTap: open),
       if (feed.categories.isNotEmpty) _buildCategories(context, feed),
-      if (feed.featuredFamilies.isNotEmpty) _buildFamilies(context, feed),
-      if (feed.bestSellers.isNotEmpty) _buildBestSellers(context, feed),
+      if (feed.trustedStores.isNotEmpty)
+        HomeSection(
+          title: 'home_trusted_stores'.tr(),
+          child: TrustedStoreRail(
+            stores: feed.trustedStores,
+            onTap: (store) => context.openFamily(store.family.slug),
+          ),
+        ),
+      if (feed.promotions.isNotEmpty)
+        HomeSection(
+          title: 'home_offers'.tr(),
+          child: PromotionRail(promotions: feed.promotions, onTap: open),
+        ),
+      if (feed.featuredProducts.isNotEmpty)
+        HomeSection(
+          title: 'home_featured_products'.tr(),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 18),
+            child: ProductGrid(
+              products: feed.featuredProducts,
+              onOpen: (product) => context.openProduct(product.slug),
+              onAdd: (product) => addToCart(context, product.id),
+            ),
+          ),
+        ),
     ];
   }
 
@@ -114,7 +142,7 @@ class _HomeView extends StatelessWidget {
           CategoryRail(
             categories: feed.categories,
             onTap: (category) => context.go(
-              AppRoutes.searchFor(categoryId: category.id),
+              AppRoutes.searchFor(categoryId: category.slug),
             ),
           ),
         ],
@@ -122,53 +150,17 @@ class _HomeView extends StatelessWidget {
     );
   }
 
-  Widget _buildFamilies(BuildContext context, HomeFeed feed) {
-    final p = context.palette;
+  void _openTarget(BuildContext context, HomeFeed feed, HomeTarget? target) {
+    final slug = feed.slugOf(target);
+    if (target == null || slug == null) return;
 
-    return Container(
-      padding: const EdgeInsets.only(top: 16, bottom: 4),
-      decoration: BoxDecoration(border: Border(top: p.rule)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: SectionHeading(
-              title: 'home_featured_families'.tr(),
-              actionLabel: 'home_see_all'.tr(),
-              onAction: () => context.go(AppRoutes.explore),
-            ),
-          ),
-          FamilyRail(
-            families: feed.featuredFamilies,
-            onTap: (family) => context.openFamily(family.id),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBestSellers(BuildContext context, HomeFeed feed) {
-    final p = context.palette;
-
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 22),
-      decoration: BoxDecoration(border: Border(top: p.rule)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          SectionHeading(
-            title: 'home_best_sellers'.tr(),
-            caption: 'home_this_week'.tr(),
-          ),
-          const SizedBox(height: 12),
-          ProductGrid(
-            products: feed.bestSellers,
-            onOpen: (product) => context.openProduct(product.id),
-            onAdd: (product) => addToCart(context, product.id),
-          ),
-        ],
-      ),
-    );
+    switch (target.kind) {
+      case HomeTargetKind.category:
+        context.go(AppRoutes.searchFor(categoryId: slug));
+      case HomeTargetKind.family:
+        context.openFamily(slug);
+      case HomeTargetKind.product:
+        context.openProduct(slug);
+    }
   }
 }

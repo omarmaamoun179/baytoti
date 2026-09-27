@@ -13,6 +13,8 @@ import '../common/bloc_observer.dart';
 import '../common/localization_service.dart';
 import '../di/di_exports.dart';
 import '../routing/app_router.dart';
+import '../utils/market.dart';
+import '../utils/money.dart';
 import 'app.dart';
 
 Future<void> bootstrap({Future<void> Function()? onReady}) async {
@@ -32,6 +34,11 @@ Future<void> bootstrap({Future<void> Function()? onReady}) async {
       await initDependencies();
 
       await onReady?.call();
+
+      Money.market = (await sl<GetCachedLocationUseCase>()(NoParams())).fold(
+        (_) => Market.fallback,
+        (cached) => Market.fromIso(cached.countryCode),
+      );
 
       await sl<AuthCubit>().restoreSession();
 
