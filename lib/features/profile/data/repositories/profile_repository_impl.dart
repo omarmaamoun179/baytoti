@@ -1,0 +1,15 @@
+import 'package:dartz/dartz.dart';
+
+import '../../../../core/domain/failure.dart';
+import '../../domain/entities/profile.dart';
+import '../../domain/repositories/profile_repository.dart';
+import '../datasources/profile_data_source.dart';
+
+class ProfileRepositoryImpl implements ProfileRepository {
+  final ProfileDataSource _dataSource;
+
+  ProfileRepositoryImpl(this._dataSource);
+
+  @override
+  Future<Either<Failure, Profile>> getProfile() => _dataSource.getProfile();
+}
