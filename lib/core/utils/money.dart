@@ -9,15 +9,18 @@ class Money extends Equatable {
   const Money({required this.fils, required this.display});
 
   factory Money.of(Map<String, dynamic> json, String key) {
-    final fils = (json['${key}_fils'] as num).toInt();
-    return Money(
-      fils: fils,
-      display: json['${key}_display'] as String? ?? format(fils, 'ar'),
-    );
+    final fils = _fils(json[key]);
+    return Money(fils: fils, display: format(fils, 'ar'));
   }
 
   static Money? maybeOf(Map<String, dynamic> json, String key) =>
-      json['${key}_fils'] == null ? null : Money.of(json, key);
+      json[key] == null ? null : Money.of(json, key);
+
+  static int _fils(Object? value) => switch (value) {
+        final num amount => (amount * 1000).round(),
+        final String amount => ((double.tryParse(amount) ?? 0) * 1000).round(),
+        _ => 0,
+      };
 
   static final NumberFormat _amount = NumberFormat('0.000', 'en');
 

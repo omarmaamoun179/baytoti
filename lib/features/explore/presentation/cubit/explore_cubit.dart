@@ -61,7 +61,7 @@ class ExploreCubit extends BaseCubit<ExploreState> {
     emit(state.copyWith(isLoadingMore: true));
 
     final result = await _getExplore(
-      ExploreParams(tab: feedTab, cursor: feed.nextCursor),
+      ExploreParams(tab: feedTab, page: feed.nextPage),
     );
     if (generation != _generation) return;
 

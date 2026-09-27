@@ -19,9 +19,9 @@ class FamilyRepositoryImpl implements FamilyRepository {
   @override
   Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     String familyId, {
-    String? cursor,
+    int? page,
   }) =>
-      _dataSource.getProducts(familyId, cursor: cursor);
+      _dataSource.getProducts(familyId, page: page);
 
   @override
   Future<Either<Failure, bool>> setFollowing(String familyId, bool following) =>

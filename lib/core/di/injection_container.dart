@@ -111,6 +111,8 @@ void _registerAuthFeature() {
     () => AuthRepositoryImpl(sl<AuthDataSource>(), sl<AuthLocalDataSource>()),
   );
 
+  sl.registerLazySingleton(() => RegisterUseCase(sl<AuthRepository>()));
+  sl.registerLazySingleton(() => LoginUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => RequestOtpUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => ResendOtpUseCase(sl<AuthRepository>()));
   sl.registerLazySingleton(() => VerifyOtpUseCase(sl<AuthRepository>()));
@@ -122,7 +124,7 @@ void _registerAuthFeature() {
     () => AuthCubit(sl(), sl(), sl(), sl<SessionNotifier>()),
   );
   sl.registerFactoryParam<OtpRequestCubit, AuthMode, void>(
-    (mode, _) => OtpRequestCubit(sl(), mode: mode),
+    (mode, _) => OtpRequestCubit(sl(), sl(), sl(), mode: mode),
   );
   sl.registerFactoryParam<OtpVerifyCubit, OtpChallenge, void>(
     (challenge, _) => OtpVerifyCubit(sl(), sl(), challenge),

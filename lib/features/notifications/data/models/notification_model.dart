@@ -44,11 +44,13 @@ class NotificationFeedModel extends NotificationFeed {
       for (final item in jsonList(json['items']))
         NotificationModel.fromJson(item),
     ];
+    final meta = jsonMap(json['meta']);
 
     return NotificationFeedModel(
       page: Paged<AppNotification>(
         items: items,
-        nextCursor: json['next_cursor'] as String?,
+        currentPage: jsonInt(meta['current_page']) ?? 1,
+        lastPage: jsonInt(meta['last_page']) ?? 1,
       ),
       unreadCount: jsonInt(json['unread_count']) ??
           items.where((notification) => !notification.isRead).length,

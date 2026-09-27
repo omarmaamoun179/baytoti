@@ -6,6 +6,28 @@ import '../entities/customer.dart';
 import '../entities/otp_challenge.dart';
 import '../repositories/auth_repository.dart';
 
+class RegisterUseCase
+    implements UseCase<Either<Failure, AuthOutcome>, RegisterParams> {
+  final AuthRepository _repository;
+
+  RegisterUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, AuthOutcome>> call(RegisterParams params) =>
+      _repository.register(params);
+}
+
+class LoginUseCase
+    implements UseCase<Either<Failure, AuthOutcome>, LoginParams> {
+  final AuthRepository _repository;
+
+  LoginUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, AuthOutcome>> call(LoginParams params) =>
+      _repository.login(params);
+}
+
 class RequestOtpUseCase
     implements UseCase<Either<Failure, OtpChallenge>, RequestOtpParams> {
   final AuthRepository _repository;

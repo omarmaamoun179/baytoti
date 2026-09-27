@@ -101,7 +101,7 @@ class SearchCubit extends BaseCubit<SearchState> {
     final generation = _generation;
     emit(state.copyWith(isLoadingMore: true));
 
-    final result = await _search(state.query.at(results.nextCursor));
+    final result = await _search(state.query.at(results.nextPage));
     if (generation != _generation) return;
 
     result.fold(

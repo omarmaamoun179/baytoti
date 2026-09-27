@@ -120,8 +120,8 @@ class OtpVerifyCubit extends BaseCubit<OtpVerifyState> {
     emit(state.copyWith(status: OtpVerifyStatus.verifying));
 
     final result = await _verifyOtp(VerifyOtpParams(
-      requestId: state.challenge.requestId,
-      code: state.code,
+      phone: state.challenge.phone,
+      otp: state.code,
     ));
 
     result.fold(

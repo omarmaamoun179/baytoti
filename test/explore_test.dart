@@ -30,21 +30,21 @@ ProductSummary _product(String id) => ProductSummary(
       price: const Money(fils: 1000, display: '1.000 KWD'),
     );
 
-ExploreFeed _feed(List<String> ids, {String? cursor}) => ExploreFeed(
+ExploreFeed _feed(List<String> ids, {int lastPage = 1}) => ExploreFeed(
       hashtags: const ['#tag'],
       rising: [
         RisingProduct(rank: 1, product: _product(ids.first), growth: '+10%'),
       ],
       mostViewed: [for (final id in ids) _product(id)],
-      nextCursor: cursor,
+      lastPage: lastPage,
     );
 
 class _Call {
   final ExploreTab tab;
-  final String? cursor;
+  final int? page;
   final Completer<Either<Failure, ExploreFeed>> completer = Completer();
 
-  _Call(this.tab, this.cursor);
+  _Call(this.tab, this.page);
 }
 
 class _FakeExploreRepository implements ExploreRepository {
@@ -53,9 +53,9 @@ class _FakeExploreRepository implements ExploreRepository {
   @override
   Future<Either<Failure, ExploreFeed>> getExplore(
     ExploreTab tab, {
-    String? cursor,
+    int? page,
   }) {
-    final call = _Call(tab, cursor);
+    final call = _Call(tab, page);
     calls.add(call);
     return call.completer.future;
   }
@@ -79,7 +79,7 @@ void main() {
       expect(feed.rising.first.growth, '+38%');
       expect(feed.rising.first.product.price.fils, 4250);
       expect(feed.mostViewed, hasLength(9));
-      expect(feed.nextCursor, isNull);
+      expect(feed.currentPage, 1);
       expect(feed.hasMore, isFalse);
     });
 
@@ -221,14 +221,14 @@ void main() {
     test('the next page appends to most viewed', () async {
       final first = cubit.load();
       repository.calls.first.completer.complete(
-        Right(_feed(['a', 'b'], cursor: 'c2')),
+        Right(_feed(['a', 'b'], lastPage: 2)),
       );
       await first;
 
       final more = cubit.loadMore();
       cubit.loadMore();
       expect(repository.calls, hasLength(2));
-      expect(repository.calls.last.cursor, 'c2');
+      expect(repository.calls.last.page, 2);
 
       repository.calls.last.completer.complete(Right(_feed(['c'])));
       await more;
@@ -246,7 +246,7 @@ void main() {
     test('a failed next page keeps the feed', () async {
       final first = cubit.load();
       repository.calls.first.completer.complete(
-        Right(_feed(['a'], cursor: 'c2')),
+        Right(_feed(['a'], lastPage: 2)),
       );
       await first;
 

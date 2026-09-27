@@ -5,7 +5,7 @@ const bool useDevicePreview =
 
 const String baseUrl = String.fromEnvironment(
   'BASE_URL',
-  defaultValue: 'https://api.baytouti.com/v1/',
+  defaultValue: 'https://betouti.alqudiry-solutions.com/api/v1/',
 );
 
 const Duration connectTimeout = Duration(seconds: 60);

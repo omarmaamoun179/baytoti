@@ -124,17 +124,17 @@ class OrderDetail extends Equatable {
 
 class OrdersQuery extends Equatable {
   final OrderStatus? status;
-  final String? cursor;
+  final int? page;
 
-  const OrdersQuery({this.status, this.cursor});
+  const OrdersQuery({this.status, this.page});
 
   Map<String, dynamic> toQueryParameters() => {
         'status': ?status?.wire,
-        'cursor': ?cursor,
+        'page': ?page,
       };
 
   @override
-  List<Object?> get props => [status, cursor];
+  List<Object?> get props => [status, page];
 }
 
 class RateOrderParams extends Equatable {

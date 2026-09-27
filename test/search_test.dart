@@ -37,11 +37,11 @@ ProductSummary _product(String id, {bool favourite = false}) => ProductSummary(
       isFavourite: favourite,
     );
 
-SearchResults _results(List<String> ids, {String? cursor, int? total}) =>
+SearchResults _results(List<String> ids, {int lastPage = 1, int? total}) =>
     SearchResults(
       page: Paged(
         items: [for (final id in ids) _product(id)],
-        nextCursor: cursor,
+        lastPage: lastPage,
         total: total ?? ids.length,
       ),
       facets: const SearchFacets(
@@ -120,7 +120,7 @@ void main() {
           .withCity('Hawalli')
           .withMinRating(SearchQuery.highRating)
           .withSort(SearchSort.priceAsc)
-          .at('c2');
+          .at(2);
 
       expect(query.toQueryParameters(), {
         'q': 'cake',
@@ -128,7 +128,7 @@ void main() {
         'city': 'Hawalli',
         'min_rating': 4.5,
         'sort': 'price_asc',
-        'cursor': 'c2',
+        'page': 2,
       });
     });
 
@@ -289,14 +289,14 @@ void main() {
       expect(cubit.state.results!.items.single.id, 'spices');
     });
 
-    test('the next page appends and stops at the last cursor', () async {
-      await loadWith(_results(['a', 'b'], cursor: 'c2', total: 3));
+    test('the next page appends and stops at the last page', () async {
+      await loadWith(_results(['a', 'b'], lastPage: 2, total: 3));
 
       final more = cubit.loadMore();
       cubit.loadMore();
       expect(repository.calls, hasLength(2));
-      expect(repository.calls.last.query.cursor, 'c2');
-      expect(cubit.state.query.cursor, isNull);
+      expect(repository.calls.last.query.page, 2);
+      expect(cubit.state.query.page, isNull);
 
       repository.calls.last.completer.complete(Right(_results(['c'])));
       await more;
@@ -309,7 +309,7 @@ void main() {
     });
 
     test('a failed next page keeps the list', () async {
-      await loadWith(_results(['a'], cursor: 'c2'));
+      await loadWith(_results(['a'], lastPage: 2));
 
       final more = cubit.loadMore();
       repository.calls.last.completer.complete(

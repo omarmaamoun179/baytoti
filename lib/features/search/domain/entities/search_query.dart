@@ -46,7 +46,7 @@ class SearchQuery extends Equatable {
   final int? maxPriceFils;
   final double? minRating;
   final SearchSort sort;
-  final String? cursor;
+  final int? page;
   final int? limit;
 
   const SearchQuery({
@@ -57,7 +57,7 @@ class SearchQuery extends Equatable {
     this.maxPriceFils,
     this.minRating,
     this.sort = SearchSort.initial,
-    this.cursor,
+    this.page,
     this.limit,
   });
 
@@ -75,7 +75,7 @@ class SearchQuery extends Equatable {
     String? Function()? city,
     double? Function()? minRating,
     SearchSort? sort,
-    String? Function()? cursor,
+    int? Function()? page,
   }) =>
       SearchQuery(
         text: text ?? this.text,
@@ -85,7 +85,7 @@ class SearchQuery extends Equatable {
         maxPriceFils: maxPriceFils,
         minRating: minRating == null ? this.minRating : minRating(),
         sort: sort ?? this.sort,
-        cursor: cursor == null ? this.cursor : cursor(),
+        page: page == null ? this.page : page(),
         limit: limit,
       );
 
@@ -99,7 +99,7 @@ class SearchQuery extends Equatable {
 
   SearchQuery withSort(SearchSort value) => _with(sort: value);
 
-  SearchQuery at(String? value) => _with(cursor: () => value);
+  SearchQuery at(int? value) => _with(page: () => value);
 
   SearchQuery cleared() => SearchQuery(
         text: text,
@@ -115,7 +115,7 @@ class SearchQuery extends Equatable {
         'max_price_fils': ?maxPriceFils,
         'min_rating': ?minRating,
         'sort': sort.wire,
-        'cursor': ?cursor,
+        'page': ?page,
         'limit': ?limit,
       };
 
@@ -128,7 +128,7 @@ class SearchQuery extends Equatable {
         maxPriceFils,
         minRating,
         sort,
-        cursor,
+        page,
         limit,
       ];
 }

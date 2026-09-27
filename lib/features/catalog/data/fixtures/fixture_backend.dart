@@ -29,6 +29,22 @@ class _Order {
   });
 }
 
+class _Account {
+  String name;
+  String email;
+  final String phone;
+  String password;
+  bool verified;
+
+  _Account({
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.password,
+    required this.verified,
+  });
+}
+
 class FixtureBackend {
   static const Duration latency = Duration(milliseconds: 350);
   static const String validCoupon = 'BAYT10';
@@ -40,7 +56,16 @@ class FixtureBackend {
   final List<_Line> _cart = [_Line('prd_1', 1), _Line('prd_3', 2)];
   String? _coupon = validCoupon;
   final Set<String> _readNotifications = {};
-  final Map<String, (String, String, String?)> _otpRequests = {};
+  final Set<String> _pendingOtp = {};
+  late final Map<String, _Account> _accounts = {
+    FixtureData.defaultCustomerPhone: _Account(
+      name: FixtureData.defaultCustomerName,
+      email: 'noura@example.com',
+      phone: FixtureData.defaultCustomerPhone,
+      password: '',
+      verified: true,
+    ),
+  };
   String _customerName = FixtureData.defaultCustomerName;
   String _customerPhone = FixtureData.defaultCustomerPhone;
   int _nextOrder = 2042;
@@ -102,10 +127,7 @@ class FixtureBackend {
         height: 600,
       );
 
-  Map<String, dynamic> _money(String key, int fils, String lang) => {
-        '${key}_fils': fils,
-        '${key}_display': Money.format(fils, lang),
-      };
+  Map<String, dynamic> _money(String key, int fils) => {key: fils / 1000};
 
   Map<String, dynamic> productSummary(FixtureProduct p, String lang) {
     final family = _family(p.familyId, lang);
@@ -117,8 +139,8 @@ class FixtureBackend {
         'name': family.name.of(lang),
         'city': family.city.of(lang),
       },
-      ..._money('price', p.priceFils, lang),
-      ..._money('compare_at', p.compareAtFils, lang),
+      ..._money('base_price', p.priceFils),
+      ..._money('compare_price', p.compareAtFils),
       'badge': p.badge,
       'rating': p.rating,
       'in_stock': p.stock > 0,
@@ -175,6 +197,11 @@ class FixtureBackend {
       _ => FixtureData.products,
     };
 
+    final mostViewed = [
+      for (final p in [...FixtureData.products, ...FixtureData.products.take(3)])
+        productSummary(p, lang),
+    ];
+
     return {
       'hashtags': FixtureData.hashtags.of(lang).split('|'),
       'rising': [
@@ -185,11 +212,12 @@ class FixtureBackend {
             'growth_display': ordered[i].growth,
           },
       ],
-      'most_viewed': [
-        for (final p in [...FixtureData.products, ...FixtureData.products.take(3)])
-          productSummary(p, lang),
-      ],
-      'next_cursor': null,
+      'most_viewed': mostViewed,
+      'meta': {
+        'current_page': 1,
+        'last_page': 1,
+        'total': mostViewed.length,
+      },
     };
   }
 
@@ -227,7 +255,6 @@ class FixtureBackend {
     final prices = matches.map((p) => p.priceFils).toList()..sort();
 
     return {
-      'total': matches.length,
       'facets': {
         'categories': [
           for (final c in FixtureData.categories)
@@ -250,7 +277,11 @@ class FixtureBackend {
         },
       },
       'items': [for (final p in matches) productSummary(p, lang)],
-      'next_cursor': null,
+      'meta': {
+        'current_page': 1,
+        'last_page': 1,
+        'total': matches.length,
+      },
     };
   }
 
@@ -311,11 +342,14 @@ class FixtureBackend {
     _family(id, lang);
     final own = FixtureData.products.where((p) => p.familyId == id);
     final others = FixtureData.products.where((p) => p.familyId != id);
+    final items = [...own, ...others].take(4).toList();
     return {
-      'items': [
-        for (final p in [...own, ...others].take(4)) productSummary(p, lang),
-      ],
-      'next_cursor': null,
+      'items': [for (final p in items) productSummary(p, lang)],
+      'meta': {
+        'current_page': 1,
+        'last_page': 1,
+        'total': items.length,
+      },
     };
   }
 
@@ -344,11 +378,13 @@ class FixtureBackend {
     );
     final shipping = lines.isEmpty || !delivery ? 0 : deliveryFeeFils;
     final applied = lines.isEmpty ? 0 : discount;
+    final total = subtotal - applied + shipping;
     return {
-      ..._money('subtotal', subtotal, lang),
-      ..._money('discount', applied, lang),
-      ..._money('shipping', shipping, lang),
-      ..._money('total', subtotal - applied + shipping, lang),
+      ..._money('subtotal', subtotal),
+      ..._money('discount', applied),
+      ..._money('shipping', shipping),
+      ..._money('total', total),
+      'total_display': Money.format(total, lang),
     };
   }
 
@@ -361,9 +397,9 @@ class FixtureBackend {
       'name': p.name.of(lang),
       'family': {'id': family.id, 'name': family.name.of(lang)},
       'image': _productImage(p, lang),
-      ..._money('unit_price', p.priceFils, lang),
+      ..._money('unit_price', p.priceFils),
       'quantity': line.quantity,
-      ..._money('line_total', p.priceFils * line.quantity, lang),
+      ..._money('line_total', p.priceFils * line.quantity),
       'max_quantity': p.stock < 10 ? p.stock : 10,
     };
   }
@@ -537,7 +573,11 @@ class FixtureBackend {
               'total_display': _orderTotals(o, lang)['total_display'],
             },
         ],
-        'next_cursor': null,
+        'meta': {
+          'current_page': 1,
+          'last_page': 1,
+          'total': _orders.length,
+        },
       };
 
   Map<String, dynamic> _orderTotals(_Order o, String lang) => _totals(
@@ -575,7 +615,14 @@ class FixtureBackend {
             'product_id': line.productId,
             'name': _product(line.productId, lang).name.of(lang),
             'quantity': line.quantity,
-            ..._money('line_total', _product(line.productId, lang).priceFils * line.quantity, lang),
+            ..._money(
+              'line_total',
+              _product(line.productId, lang).priceFils * line.quantity,
+            ),
+            'line_total_display': Money.format(
+              _product(line.productId, lang).priceFils * line.quantity,
+              lang,
+            ),
             'image': _productImage(_product(line.productId, lang), lang),
           },
       ],
@@ -615,7 +662,11 @@ class FixtureBackend {
     return {
       'unread_count': items.where((n) => n['is_read'] != true).length,
       'items': items,
-      'next_cursor': null,
+      'meta': {
+        'current_page': 1,
+        'last_page': 1,
+        'total': items.length,
+      },
     };
   }
 
@@ -638,40 +689,79 @@ class FixtureBackend {
         },
       };
 
-  Map<String, dynamic> requestOtp({
+  Map<String, dynamic> register({
+    required String name,
+    required String email,
     required String phone,
-    required String mode,
-    String? fullName,
+    required String password,
+    required String lang,
   }) {
-    final requestId = 'otp_${_otpRequests.length + 1}';
-    _otpRequests[requestId] = (phone, mode, fullName);
-    return {
-      'request_id': requestId,
-      'expires_in': 120,
-      'resend_after': 30,
-      'digits': 4,
-    };
-  }
-
-  Map<String, dynamic> resendOtp(String requestId, String lang) {
-    if (!_otpRequests.containsKey(requestId)) {
+    if (_accounts.containsKey(phone)) {
       throw RequestException(
-        lang == 'ar' ? 'انتهت صلاحية الرمز. اطلب رمزاً جديداً.' : 'The code has expired. Request a new one.',
-        code: 'otp_expired',
-        statusCode: 410,
+        lang == 'ar' ? 'رقم الهاتف مستخدم بالفعل.' : 'That phone number is already registered.',
+        statusCode: 422,
+        errors: {
+          'phone': [
+            lang == 'ar' ? 'رقم الهاتف مستخدم بالفعل.' : 'That phone number is already registered.',
+          ],
+        },
       );
     }
+
+    _accounts[phone] = _Account(
+      name: name,
+      email: email,
+      phone: phone,
+      password: password,
+      verified: false,
+    );
+
     return {
-      'request_id': requestId,
-      'expires_in': 120,
-      'resend_after': 30,
-      'digits': 4,
+      'user': _accountJson(_accounts[phone]!),
+      'token': null,
     };
   }
 
-  Map<String, dynamic> verifyOtp(String requestId, String code, String lang) {
-    final request = _otpRequests[requestId];
-    if (request == null) {
+  Map<String, dynamic> login({
+    required String phone,
+    required String password,
+    required String lang,
+  }) {
+    final account = _accounts[phone];
+    final matches = account != null &&
+        (account.password.isEmpty || account.password == password);
+    if (!matches) {
+      throw RequestException(
+        lang == 'ar' ? 'رقم الهاتف أو كلمة المرور غير صحيحة.' : 'That phone number or password is not right.',
+        statusCode: 401,
+      );
+    }
+
+    return {
+      'user': _accountJson(account),
+      'token': account.verified ? 'fixture-access-$phone' : null,
+    };
+  }
+
+  Map<String, dynamic> _accountJson(_Account account) => {
+        'id': 'usr_18',
+        'full_name': account.name,
+        'phone': account.phone,
+        'email': account.email,
+        'avatar': null,
+        'status': account.verified,
+      };
+
+  Map<String, dynamic> requestOtp({required String phone}) {
+    if (!_accounts.containsKey(phone)) {
+      throw const RequestException('otp_failed', statusCode: 404);
+    }
+    _pendingOtp.add(phone);
+    return {'expires_in': 120, 'resend_after': 30, 'digits': 4};
+  }
+
+  Map<String, dynamic> verifyOtp(String phone, String code, String lang) {
+    if (!_pendingOtp.contains(phone)) {
       throw RequestException(
         lang == 'ar' ? 'انتهت صلاحية الرمز. اطلب رمزاً جديداً.' : 'The code has expired. Request a new one.',
         code: 'otp_expired',
@@ -687,25 +777,19 @@ class FixtureBackend {
       );
     }
 
-    final (phone, mode, fullName) = request;
-    _customerPhone = phone;
-    if (fullName != null && fullName.trim().isNotEmpty) {
-      _customerName = fullName.trim();
-    }
-    _otpRequests.remove(requestId);
+    final account = _accounts[phone]!;
+    final isNewUser = !account.verified;
+    account.verified = true;
+    _pendingOtp.remove(phone);
+    _customerName = account.name;
+    _customerPhone = account.phone;
 
     return {
-      'access_token': 'fixture-access-$requestId',
-      'refresh_token': 'fixture-refresh-$requestId',
+      'access_token': 'fixture-access-$phone',
+      'refresh_token': 'fixture-refresh-$phone',
       'expires_in': 3600,
-      'is_new_user': mode == 'signup',
-      'user': {
-        'id': 'usr_18',
-        'full_name': _customerName,
-        'phone': _customerPhone,
-        'avatar': null,
-        'role': 'customer',
-      },
+      'is_new_user': isNewUser,
+      'user': _accountJson(account),
     };
   }
 }

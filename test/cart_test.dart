@@ -79,7 +79,7 @@ void main() {
       expect(cart.totals.discount.fils, 500);
       expect(cart.totals.shipping.fils, 1500);
       expect(cart.totals.total.fils, 9050);
-      expect(cart.totals.total.display, '9.050 KWD');
+      expect(cart.totals.total.display, '9.050 د.ك');
     });
   });
 

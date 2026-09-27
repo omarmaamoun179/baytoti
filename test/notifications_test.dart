@@ -57,10 +57,10 @@ AppNotification _notification(String id, {bool isRead = false}) =>
 
 Either<Failure, NotificationFeed> _feed(
   List<AppNotification> items, {
-  String? nextCursor,
+  int lastPage = 1,
 }) =>
     Right(NotificationFeed(
-      page: Paged<AppNotification>(items: items, nextCursor: nextCursor),
+      page: Paged<AppNotification>(items: items, lastPage: lastPage),
       unreadCount: items.where((n) => !n.isRead).length,
     ));
 
@@ -119,14 +119,14 @@ void main() {
             'target': {'kind': 'ticket', 'id': 't_1'},
           },
         ],
-        'next_cursor': 'c_2',
+        'meta': {'current_page': 1, 'last_page': 2},
       });
 
       final item = feed.page.items.single;
       expect(item.type, isNull);
       expect(item.target, isNull);
       expect(feed.unreadCount, 1);
-      expect(feed.page.nextCursor, 'c_2');
+      expect(feed.page.currentPage, 1);
       expect(feed.page.hasMore, isTrue);
     });
 
@@ -144,11 +144,11 @@ void main() {
       );
     });
 
-    test('the query omits an absent cursor', () {
+    test('the query omits an absent page', () {
       expect(const NotificationsQuery().toQueryParameters(), isEmpty);
       expect(
-        const NotificationsQuery(cursor: 'c_2').toQueryParameters(),
-        {'cursor': 'c_2'},
+        const NotificationsQuery(page: 2).toQueryParameters(),
+        {'page': 2},
       );
     });
   });
@@ -194,7 +194,7 @@ void main() {
       expect(cubit.state.notifications.map((n) => n.id), ['a', 'b']);
       expect(cubit.state.notifications.first.isRead, isFalse);
       expect(repository.markCalls, 1);
-      expect(repository.queries.single.cursor, isNull);
+      expect(repository.queries.single.page, isNull);
 
       await sub.cancel();
       await cubit.close();
@@ -256,10 +256,10 @@ void main() {
       await cubit.close();
     });
 
-    test('the next page is read by cursor and appended', () async {
+    test('the next page is read by page number and appended', () async {
       final repository = _FakeRepository(
-        (query) async => query.cursor == null
-            ? _feed([_notification('a')], nextCursor: 'c_2')
+        (query) async => query.page == null
+            ? _feed([_notification('a')], lastPage: 2)
             : _feed([_notification('b', isRead: true)]),
       );
       final cubit = _cubit(repository);
@@ -267,7 +267,7 @@ void main() {
 
       await cubit.loadMore();
 
-      expect(repository.queries.last.cursor, 'c_2');
+      expect(repository.queries.last.page, 2);
       expect(cubit.state.notifications.map((n) => n.id), ['a', 'b']);
       expect(cubit.state.page.hasMore, isFalse);
       expect(cubit.state.isLoadingMore, isFalse);
@@ -279,8 +279,8 @@ void main() {
 
     test('a failed next page keeps the list', () async {
       final repository = _FakeRepository(
-        (query) async => query.cursor == null
-            ? _feed([_notification('a')], nextCursor: 'c_2')
+        (query) async => query.page == null
+            ? _feed([_notification('a')], lastPage: 2)
             : const Left(_offline),
       );
       final cubit = _cubit(repository);
@@ -290,7 +290,7 @@ void main() {
 
       expect(cubit.state.status, NotificationsStatus.loaded);
       expect(cubit.state.notifications.map((n) => n.id), ['a']);
-      expect(cubit.state.page.nextCursor, 'c_2');
+      expect(cubit.state.page.lastPage, 2);
       expect(cubit.state.isLoadingMore, isFalse);
       expect(cubit.state.errorMessage, 'You are offline.');
       await cubit.close();
@@ -300,10 +300,10 @@ void main() {
       final nextPage = Completer<Either<Failure, NotificationFeed>>();
       var refreshed = false;
       final repository = _FakeRepository((query) async {
-        if (query.cursor != null) return nextPage.future;
+        if (query.page != null) return nextPage.future;
         return refreshed
-            ? _feed([_notification('fresh')], nextCursor: 'c_9')
-            : _feed([_notification('a')], nextCursor: 'c_2');
+            ? _feed([_notification('fresh')], lastPage: 3)
+            : _feed([_notification('a')], lastPage: 2);
       });
       final cubit = _cubit(repository);
       await cubit.load();
@@ -315,7 +315,7 @@ void main() {
       await more;
 
       expect(cubit.state.notifications.map((n) => n.id), ['fresh']);
-      expect(cubit.state.page.nextCursor, 'c_9');
+      expect(cubit.state.page.lastPage, 3);
       expect(cubit.state.isLoadingMore, isFalse);
       await cubit.close();
     });

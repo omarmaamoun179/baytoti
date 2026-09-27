@@ -34,6 +34,7 @@ class AppTextField extends StatelessWidget {
   final List<TextInputFormatter>? inputFormatters;
   final int? maxLength;
   final bool hasError;
+  final bool obscureText;
 
   const AppTextField({
     super.key,
@@ -45,6 +46,7 @@ class AppTextField extends StatelessWidget {
     this.inputFormatters,
     this.maxLength,
     this.hasError = false,
+    this.obscureText = false,
   });
 
   @override
@@ -60,6 +62,7 @@ class AppTextField extends StatelessWidget {
         textInputAction: textInputAction,
         inputFormatters: inputFormatters,
         maxLength: maxLength,
+        obscureText: obscureText,
         style: AppStrings.w600(14, 1.2).c(p.text),
         decoration: fieldDecoration(p, hint: hint, hasError: hasError),
       ),

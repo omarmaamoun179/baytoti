@@ -70,7 +70,7 @@ class SearchResults extends Equatable {
 
   bool get hasMore => page.hasMore;
 
-  String? get nextCursor => page.nextCursor;
+  int get nextPage => page.nextPage;
 
   SearchResults append(SearchResults next) =>
       SearchResults(page: page.append(next.page), facets: facets);
@@ -84,7 +84,8 @@ class SearchResults extends Equatable {
                   ? item.copyWith(isFavourite: isFavourite)
                   : item,
           ],
-          nextCursor: page.nextCursor,
+          currentPage: page.currentPage,
+          lastPage: page.lastPage,
           total: page.total,
         ),
         facets: facets,

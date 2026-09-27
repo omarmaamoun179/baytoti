@@ -48,13 +48,12 @@ class FamilyCubit extends BaseCubit<FamilyState> {
   Future<void> retry() => load(_familyId);
 
   Future<void> loadMore() async {
-    final cursor = state.products.nextCursor;
-    if (!state.canLoadMore || cursor == null) return;
+    if (!state.canLoadMore) return;
     final generation = _generation;
     emit(state.copyWith(isLoadingMore: true));
 
     final result = await _getProducts(
-      FamilyProductsParams(familyId: _familyId, cursor: cursor),
+      FamilyProductsParams(familyId: _familyId, page: state.products.nextPage),
     );
     if (generation != _generation) return;
 

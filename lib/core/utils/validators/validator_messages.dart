@@ -32,3 +32,20 @@ String? validatePhone(String? value) => switch (checkPhone(value)) {
       PhoneError.empty => 'phone_required'.tr(),
       PhoneError.invalid => 'invalid_phone'.tr(),
     };
+
+String? validateEmail(String? value) => switch (checkEmail(value)) {
+      null => null,
+      EmailError.empty => 'email_required'.tr(),
+      EmailError.invalid => 'invalid_email'.tr(),
+    };
+
+String? validatePassword(String? value) => switch (checkPassword(value)) {
+      null => null,
+      PasswordError.empty => 'password_required'.tr(),
+      PasswordError.tooShort => 'password_too_short'.tr(),
+    };
+
+String? validatePasswordConfirmation(String? value, String password) {
+  if ((value ?? '').isEmpty) return 'password_confirmation_required'.tr();
+  return value == password ? null : 'password_mismatch'.tr();
+}

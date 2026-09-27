@@ -13,7 +13,7 @@ import '../models/explore_model.dart';
 abstract class ExploreDataSource {
   Future<Either<Failure, ExploreFeedModel>> getExplore(
     ExploreTab tab, {
-    String? cursor,
+    int? page,
   });
 }
 
@@ -25,14 +25,14 @@ class ExploreRemoteDataSource implements ExploreDataSource {
   @override
   Future<Either<Failure, ExploreFeedModel>> getExplore(
     ExploreTab tab, {
-    String? cursor,
+    int? page,
   }) =>
       guardedRequest(
         'ExploreRemoteDataSource.getExplore',
         () async {
           final response = await _network.get(
             ApiEndPoint.explore,
-            queryParameters: {'tab': tab.wire, 'cursor': ?cursor},
+            queryParameters: {'tab': tab.wire, 'page': ?page},
           );
           return ExploreFeedModel.fromJson(checkedResponse(response).json);
         },
@@ -49,7 +49,7 @@ class ExploreMockDataSource implements ExploreDataSource {
   @override
   Future<Either<Failure, ExploreFeedModel>> getExplore(
     ExploreTab tab, {
-    String? cursor,
+    int? page,
   }) =>
       guardedRequest(
         'ExploreMockDataSource.getExplore',

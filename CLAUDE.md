@@ -55,9 +55,10 @@ flutter run --dart-define=BASE_URL=https://staging.example.com/v1/
 
 `useMockData` (`core/di/injection_container.dart`) defaults to **true** and
 only decides which data source each repository is built with.
-**`api.baytouti.com` does not exist yet** (NXDOMAIN on 2026-09-23), so every
-feature — auth included — has a fixture source, and the app is only usable on
-fixtures today.
+**The real backend is `https://betouti.alqudiry-solutions.com/api/v1/`**
+(a Laravel marketplace shared with `../cloack`'s "Cloak" app, scoped to food
+for Betouti — see the API contract section). `useMockData` still defaults to
+true and nothing has switched the app to live traffic yet.
 
 `lib/main.dart` is one line; everything before the first frame is in
 `core/app/bootstrap.dart`: binding → localization → DI → session restore →
@@ -77,7 +78,12 @@ models are exercised against the contract even with no backend. The
 language comes from `ContentLanguage` (the same language the remote sends as
 `Accept-Language`). Fixture rules: OTP `0000` is refused as `otp_invalid`,
 any other four digits sign in; coupon `BAYT10` is valid; order `ord_1998` is
-delivered and can be rated.
+delivered and can be rated. Logging in with the seeded phone
+(`FixtureData.defaultCustomerPhone`) and any password signs in immediately,
+already verified, no OTP — it's the one seeded account with an empty stored
+password, which the fixture treats as "accepts anything". Registering that
+same phone again is refused (422 on `phone`); any other phone registers as
+new and unverified, then follows the normal request-otp/verify-otp path.
 
 ## Current state
 
@@ -114,29 +120,104 @@ deliberate departures:
 
 ## The API contract, as core reads it
 
-- **Base URL** `https://api.baytouti.com/v1/` (`core/utils/constants.dart`,
-  trailing slash required). Paths in `ApiEndPoint`.
-- **No envelope.** A 2xx body *is* the resource; `checkedResponse(response)`
-  returns an `ApiResponse` whose `.json` is that body, and throws on failure.
-- **Errors** are `{"error": {"code", "message", "field", "details"}}`. `code`
-  is stable (`otp_invalid`, `otp_expired`, `rate_limited`,
-  `stock_insufficient`, `coupon_invalid`) and reaches the cubit as
-  `Failure.code`; `message` is already localised and safe to show; a `field`
-  makes it a `ValidationFailure` keyed by that field.
-- **Money** is integer fils plus a localised display string: `Money.of(json,
-  'price')` reads `price_fils`/`price_display`. Show `display`, never format
-  a server amount yourself. `Money.format` exists only for fixtures.
-- **Lists** are cursor pages: `{items, next_cursor}` → `Paged<T>`
-  (`hasMore` is `nextCursor != null`, never the row count).
-- **Locale** goes out as `Accept-Language: ar-KW|en-KW`; content (product
-  names, order labels, notification text) comes back already localised. The
-  app translates only its own chrome.
-- **Auth**: `request-otp` → `verify-otp` returns access and refresh tokens
-  (`TokenStore`). `POST /auth/refresh` exists in the contract but nothing calls
-  it: a 401 on a call sent with the stored token ends the session
-  (`NetworkServiceImpl` → `AuthCubit.sessionExpired`). Public calls pass
-  `skipAuthRefresh: true`. Catalogue reads work without a token; the cart,
-  checkout, orders, favourites, follows, notifications and `/me` need one.
+This section described a fictional contract until 2026-09-27, written before
+any real backend existed. It now reflects
+`Betouti_Mobile_API_Integration_Guide_v1.0.pdf` (the backend team's mobile
+integration guide) plus what `../cloack` — a sibling app on the same Laravel
+backend, at `cloak.alqudiry-solutions.com` — actually does on the wire. The
+guide itself says its route lists and error/pagination shapes are firm but
+defers exact per-resource field names to a generated OpenAPI/Scramble spec
+**core does not have yet**. Anywhere below that isn't backed by the guide or
+by reading `../cloack`'s code is still a guess carried over from the old
+fictional contract, flagged as such.
+
+- **Base URL** `https://betouti.alqudiry-solutions.com/api/v1/`
+  (`core/utils/constants.dart`, trailing slash required). Paths in
+  `ApiEndPoint`.
+- **Envelope**: every response is `{"success", "message", "data", "errors"}`.
+  `ApiResponse.json` (`core/network/api_response.dart`) unwraps this
+  transparently — it returns `data` itself when `data` is an object, or the
+  whole envelope when `data` is a list (so `Paged.fromJson` can still reach
+  the sibling `meta`/`links`). Every existing `Model.fromJson(response.json)`
+  call site keeps working unchanged either way.
+- **Errors**: non-2xx or `"success": false` throws `RequestException` built
+  from `message` (free text, safe to show) and `errors` — Laravel validation
+  shape, `{field: [message, …]}`. **There is no stable `code` any more** —
+  the old `otp_invalid`/`stock_insufficient`/`coupon_invalid` sentinels
+  `Failure.code` used to carry don't exist in this contract. Anything
+  branching on `Failure.code` needs another way to tell errors apart (the
+  `field` key, or matching on `message`) — not yet audited across the app.
+- **Money**: the guide's food Product model gives `base_price`/
+  `compare_price` with no type or currency stated. `Money.of`/`maybeOf`
+  (`core/utils/money.dart`) now read those as a plain decimal number (int or
+  numeric string, defensively) and convert to fils assuming 3-decimal KWD —
+  **an assumption, not a confirmed currency**. Bigger regression: the server
+  no longer sends a display string at all, so `Money.display` is now always
+  computed client-side, and the factory has no locale to format with — it
+  hardcodes `'ar'`. English screens will show Arabic-formatted amounts until
+  this is fixed properly (thread the current language into every `Money.of`
+  call, or get the backend to send a display string back).
+- **Lists are Laravel page pagination**: `{data: [...], links, meta:
+  {current_page, last_page, per_page, total}}` → `Paged<T>` (`hasMore` is
+  `currentPage < lastPage`; query as `page: paged.nextPage`, an int — not a
+  cursor string).
+- **Locale**: the guide says nothing about `Accept-Language` or server-side
+  content localisation at all. The header is still sent, unchanged, but
+  whether this backend actually localises product/store/order content by it
+  is **unconfirmed** — may need client-side translation of catalog content
+  if it doesn't.
+- **Auth — confirmed endpoints** (the guide, and the user directly):
+  `auth/register`, `auth/login`, `auth/request-otp`, `auth/verify-otp`,
+  `auth/me`, `auth/logout`, plus `auth/profile` (PATCH, in the guide's table
+  though not in the user's own shorter list, unused so far). There is no
+  separate resend-otp route on this backend — `ApiEndPoint.resendOtp` just
+  points at `requestOtp`.
+- **Auth flow — deliberately departs from the 13-screen design.** The design
+  and this app's screens were phone+OTP only, no password. `../cloack`'s
+  actual working integration against this same backend engine showed that
+  doesn't hold up: `register`/`login` are password-based
+  (name/email/phone/password), and `verify-otp` only issues a session *for
+  an account `register` already created* — a code alone does not open one
+  for a brand-new phone number. Per the user, `AuthForm` now also collects
+  email and a password (+confirmation on signup), mirroring `../cloack`'s
+  flow: `OtpRequestCubit.submit` calls `register` (signup) or `login`
+  (login) first; a `RequestException` with no `id` in its user payload
+  fails outright (`AuthOutcomeModel.readAccount`); a payload with a token
+  goes straight to `AuthStatus.signedIn` — **login now skips OTP entirely
+  for an already-verified account**; a payload with no token chains into
+  the existing `request-otp` → `OtpPage` → `verify-otp` path unchanged.
+  `AuthOutcome` (`SignedIn` / `AwaitingVerification`) is the repository's
+  sealed result type for this. None of this has been exercised against the
+  real backend — request/response field names (`name`/`email`/`phone`/
+  `password`/`password_confirmation` for register, `login`/`password` for
+  login) come from `../cloack`'s code, not a confirmed Betouti schema.
+- **`POST /auth/refresh`**: not in the guide's route list; `../cloack`'s own
+  comment says it 404s (single non-refreshable token). Still unused here,
+  as before.
+- **Family ↔ Store**: the guide's "Store" is this app's "family" —
+  `ApiEndPoint.family`/`familyProducts`/`familyFollow` now point at
+  `stores/…` instead of `families/…`. The store-follow endpoint itself
+  **isn't in the guide at all**; the path is an unconfirmed carry-over guess.
+- **Favourites → wishlist**: `ApiEndPoint.favourites`/`favourite` now point
+  at `wishlist/…` (confirmed route, GET/POST/DELETE only — no PATCH).
+- **Product/store detail routes are slug-keyed** (`products/{product:slug}`,
+  `stores/{slug}`), not id-keyed. The path builders are unchanged (they just
+  interpolate whatever string they're given), but nothing in this app has
+  been checked for whether the "id" it already threads through routing,
+  cart lines and favourites is actually usable as that slug.
+- **Not in the guide's route map at all** — still fixture-shaped guesses,
+  unconfirmed, possibly nonexistent on this backend: dedicated `home`/
+  `explore`/`search` endpoints (the guide has discovery reading `products`/
+  `stores`/`categories` directly, with no aggregate endpoint), `notifications`,
+  order `rating`, `checkout/options` (real checkout is `POST
+  /orders/checkout`, added as `ApiEndPoint.checkout`, and can create more
+  than one order per cart — the checkout flow still assumes exactly one).
+- **New, confirmed, not yet wired to any repository/cubit/screen**:
+  `countries`, `countries/{id}/governorates`, `location/context` (GET sets
+  the browsing context, POST reads it — AUTO via GPS or MANUAL via a picked
+  country/governorate), `categories`. Every product/store list is meant to
+  be scoped by whichever is active. No location permission flow, country
+  picker or address book exists in this app yet — seeing this document.
 - **The cart is server-owned**: every mutation answers the full recalculated
   cart and the app never adds prices up.
 

@@ -45,6 +45,11 @@ class _AuthView extends StatelessWidget {
           ).toString(),
           extra: state.challenge,
         );
+      case OtpRequestStatus.signedIn:
+        final customer = state.customer;
+        if (customer != null) {
+          context.read<AuthCubit>().completeSignIn(customer);
+        }
       case OtpRequestStatus.failed:
         final message = [
           ?state.errorMessage,
@@ -104,9 +109,21 @@ class _AuthView extends StatelessWidget {
                             serverErrors: state.fieldErrors,
                             onInvalid: (message) =>
                                 showAppToast(context, message, isError: true),
-                            onSubmit: (phone, name) => context
-                                .read<OtpRequestCubit>()
-                                .submit(phone: phone, fullName: name),
+                            onSubmit: ({
+                              required phone,
+                              required password,
+                              fullName,
+                              email,
+                              passwordConfirmation,
+                            }) =>
+                                context.read<OtpRequestCubit>().submit(
+                                      phone: phone,
+                                      password: password,
+                                      fullName: fullName,
+                                      email: email,
+                                      passwordConfirmation:
+                                          passwordConfirmation,
+                                    ),
                           ),
                         ],
                       ),

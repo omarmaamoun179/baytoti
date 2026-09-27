@@ -260,11 +260,14 @@ void main() {
       expect(result.fold((_) => null, (o) => o.orderId), 'ord_9');
     });
 
-    test('a refusal keeps the server code and message', () async {
+    test('a refusal keeps the server message', () async {
       final network = _RecordingNetwork(
         statusCode: 409,
         body: const {
-          'error': {'code': 'cart_empty', 'message': 'The cart is empty'},
+          'success': false,
+          'message': 'The cart is empty',
+          'data': null,
+          'errors': null,
         },
       );
 
@@ -272,7 +275,6 @@ void main() {
       final failure = result.fold((f) => f, (_) => null);
 
       expect(failure, isA<ServerFailure>());
-      expect(failure?.code, 'cart_empty');
       expect(failure?.message, 'The cart is empty');
     });
   });
@@ -553,7 +555,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Home — Hawalli'), findsOneWidget);
-      expect(find.text('9.050 KWD'), findsWidgets);
+      expect(find.text('9.050 د.ك'), findsWidgets);
 
       await tester.tap(find.text('Pickup'));
       await tester.pumpAndSettle();

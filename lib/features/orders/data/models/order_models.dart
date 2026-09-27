@@ -19,15 +19,18 @@ class OrderSummaryModel extends OrderSummary {
         totalDisplay: json['total_display'] as String? ?? '',
       );
 
-  static Paged<OrderSummary> pageFrom(Map<String, dynamic> json) =>
-      Paged<OrderSummary>(
-        items: [
-          for (final item in jsonList(json['items']))
-            OrderSummaryModel.fromJson(item),
-        ],
-        nextCursor: json['next_cursor'] as String?,
-        total: jsonInt(json['total']),
-      );
+  static Paged<OrderSummary> pageFrom(Map<String, dynamic> json) {
+    final meta = jsonMap(json['meta']);
+    return Paged<OrderSummary>(
+      items: [
+        for (final item in jsonList(json['items']))
+          OrderSummaryModel.fromJson(item),
+      ],
+      currentPage: jsonInt(meta['current_page']) ?? 1,
+      lastPage: jsonInt(meta['last_page']) ?? 1,
+      total: jsonInt(meta['total']),
+    );
+  }
 }
 
 class OrderTimelineStepModel extends OrderTimelineStep {

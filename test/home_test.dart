@@ -36,7 +36,7 @@ void main() {
       final feed = HomeFeedModel.fromJson(FixtureBackend().home('en'));
 
       expect(feed.bestSellers.first.name, 'Cardamom date cake');
-      expect(feed.bestSellers.first.price.display, '4.250 KWD');
+      expect(feed.bestSellers.first.price.display, '4.250 د.ك');
     });
   });
 

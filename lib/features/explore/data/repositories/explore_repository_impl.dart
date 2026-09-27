@@ -13,7 +13,7 @@ class ExploreRepositoryImpl implements ExploreRepository {
   @override
   Future<Either<Failure, ExploreFeed>> getExplore(
     ExploreTab tab, {
-    String? cursor,
+    int? page,
   }) =>
-      _dataSource.getExplore(tab, cursor: cursor);
+      _dataSource.getExplore(tab, page: page);
 }

@@ -22,17 +22,21 @@ class ExploreFeedModel extends ExploreFeed {
     super.hashtags,
     super.rising,
     super.mostViewed,
-    super.nextCursor,
+    super.currentPage,
+    super.lastPage,
   });
 
-  factory ExploreFeedModel.fromJson(Map<String, dynamic> json) =>
-      ExploreFeedModel(
-        hashtags: stringList(json['hashtags']),
-        rising: [
-          for (final item in jsonList(json['rising']))
-            RisingProductModel.fromJson(item),
-        ],
-        mostViewed: ProductSummaryModel.listFrom(json['most_viewed']),
-        nextCursor: json['next_cursor'] as String?,
-      );
+  factory ExploreFeedModel.fromJson(Map<String, dynamic> json) {
+    final meta = jsonMap(json['meta']);
+    return ExploreFeedModel(
+      hashtags: stringList(json['hashtags']),
+      rising: [
+        for (final item in jsonList(json['rising']))
+          RisingProductModel.fromJson(item),
+      ],
+      mostViewed: ProductSummaryModel.listFrom(json['most_viewed']),
+      currentPage: jsonInt(meta['current_page']) ?? 1,
+      lastPage: jsonInt(meta['last_page']) ?? 1,
+    );
+  }
 }

@@ -16,7 +16,13 @@ class AuthForm extends StatefulWidget {
   final AuthMode mode;
   final bool isSubmitting;
   final Map<String, String> serverErrors;
-  final void Function(String phone, String? fullName) onSubmit;
+  final void Function({
+    required String phone,
+    required String password,
+    String? fullName,
+    String? email,
+    String? passwordConfirmation,
+  }) onSubmit;
   final ValueChanged<String> onInvalid;
 
   const AuthForm({
@@ -35,7 +41,10 @@ class AuthForm extends StatefulWidget {
 class _AuthFormState extends State<AuthForm> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
+  final _email = TextEditingController();
   final _phone = TextEditingController();
+  final _password = TextEditingController();
+  final _passwordConfirmation = TextEditingController();
   bool _terms = false;
   Set<String> _invalid = const {};
 
@@ -44,26 +53,42 @@ class _AuthFormState extends State<AuthForm> {
   @override
   void dispose() {
     _name.dispose();
+    _email.dispose();
     _phone.dispose();
+    _password.dispose();
+    _passwordConfirmation.dispose();
     super.dispose();
   }
 
   void _submit() {
     FocusScope.of(context).unfocus();
 
-    final phoneValid = _formKey.currentState?.validate() ?? true;
+    final formValid = _formKey.currentState?.validate() ?? true;
     final problems = <String, String>{
       if (_signup) 'name': ?validateName(_name.text),
+      if (_signup) 'email': ?validateEmail(_email.text),
+      'password': ?validatePassword(_password.text),
+      if (_signup)
+        'password_confirmation': ?validatePasswordConfirmation(
+          _passwordConfirmation.text,
+          _password.text,
+        ),
       if (_signup && !_terms) 'terms': 'auth_terms_required'.tr(),
     };
 
     setState(() => _invalid = problems.keys.toSet());
-    if (problems.isNotEmpty || !phoneValid) {
+    if (problems.isNotEmpty || !formValid) {
       if (problems.isNotEmpty) widget.onInvalid(problems.values.join('\n'));
       return;
     }
 
-    widget.onSubmit(toE164(_phone.text), _signup ? _name.text.trim() : null);
+    widget.onSubmit(
+      phone: toE164(_phone.text),
+      password: _password.text,
+      fullName: _signup ? _name.text.trim() : null,
+      email: _signup ? _email.text.trim() : null,
+      passwordConfirmation: _signup ? _passwordConfirmation.text : null,
+    );
   }
 
   bool _hasError(String field, String serverKey) =>
@@ -86,7 +111,18 @@ class _AuthFormState extends State<AuthForm> {
                 hint: 'auth_name_hint'.tr(),
                 maxLength: 100,
                 textInputAction: TextInputAction.next,
-                hasError: _hasError('name', 'full_name'),
+                hasError: _hasError('name', 'name'),
+              ),
+            ),
+            const SizedBox(height: 16),
+            LabeledField(
+              label: 'auth_email'.tr(),
+              child: AppTextField(
+                controller: _email,
+                hint: 'auth_email_hint'.tr(),
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                hasError: _hasError('email', 'email'),
               ),
             ),
             const SizedBox(height: 16),
@@ -98,7 +134,30 @@ class _AuthFormState extends State<AuthForm> {
             requiredMessage: 'phone_required'.tr(),
             invalidMessage: 'invalid_phone'.tr(),
           ),
+          const SizedBox(height: 16),
+          LabeledField(
+            label: 'auth_password'.tr(),
+            child: AppTextField(
+              controller: _password,
+              hint: 'auth_password_hint'.tr(),
+              obscureText: true,
+              textInputAction:
+                  _signup ? TextInputAction.next : TextInputAction.done,
+              hasError: _hasError('password', 'password'),
+            ),
+          ),
           if (_signup) ...[
+            const SizedBox(height: 16),
+            LabeledField(
+              label: 'auth_password_confirmation'.tr(),
+              child: AppTextField(
+                controller: _passwordConfirmation,
+                hint: 'auth_password_hint'.tr(),
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                hasError: _hasError('password_confirmation', 'password_confirmation'),
+              ),
+            ),
             const SizedBox(height: 16),
             TermsCheckbox(
               accepted: _terms,

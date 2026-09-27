@@ -14,31 +14,34 @@ class ApiResponse {
 
   bool get isOk => statusCode >= 200 && statusCode < 300;
 
-  Map<String, dynamic> get json =>
+  Map<String, dynamic> get _envelope =>
       body is Map ? Map<String, dynamic>.from(body as Map) : const {};
 
-  Map<String, dynamic> get _error => switch (json['error']) {
-        final Map<dynamic, dynamic> error => Map<String, dynamic>.from(error),
+  Map<String, dynamic> get json {
+    final envelope = _envelope;
+    final data = envelope['data'];
+    return data is Map ? Map<String, dynamic>.from(data) : envelope;
+  }
+
+  bool get _succeeded {
+    final success = _envelope['success'];
+    return success is bool ? success : isOk;
+  }
+
+  Map<String, dynamic> get _errors => switch (_envelope['errors']) {
+        final Map<dynamic, dynamic> errors => Map<String, dynamic>.from(errors),
         _ => const {},
       };
 
   void ensureOk() {
-    if (isOk) return;
+    if (_succeeded) return;
 
-    final error = _error;
-    final message = error['message'] as String? ?? '';
-    final field = error['field'] as String?;
+    final message = _envelope['message'] as String? ?? '';
 
     throw RequestException(
       message.isNotEmpty ? message : 'request_failed',
-      code: error['code'] as String?,
       statusCode: statusCode,
-      errors: field == null || message.isEmpty ? null : {field: message},
-      details: switch (error['details']) {
-        final Map<dynamic, dynamic> details =>
-          Map<String, dynamic>.from(details),
-        _ => null,
-      },
+      errors: _errors.isEmpty ? null : _errors,
     );
   }
 }

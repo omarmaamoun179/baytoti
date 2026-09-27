@@ -8,12 +8,12 @@ import '../repositories/explore_repository.dart';
 
 class ExploreParams extends Equatable {
   final ExploreTab tab;
-  final String? cursor;
+  final int? page;
 
-  const ExploreParams({required this.tab, this.cursor});
+  const ExploreParams({required this.tab, this.page});
 
   @override
-  List<Object?> get props => [tab, cursor];
+  List<Object?> get props => [tab, page];
 }
 
 class GetExploreUseCase
@@ -24,5 +24,5 @@ class GetExploreUseCase
 
   @override
   Future<Either<Failure, ExploreFeed>> call(ExploreParams params) =>
-      _repository.getExplore(params.tab, cursor: params.cursor);
+      _repository.getExplore(params.tab, page: params.page);
 }

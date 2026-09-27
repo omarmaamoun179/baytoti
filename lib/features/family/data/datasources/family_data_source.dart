@@ -17,7 +17,7 @@ abstract class FamilyDataSource {
 
   Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     String familyId, {
-    String? cursor,
+    int? page,
   });
 
   Future<Either<Failure, bool>> setFollowing(String familyId, bool following);
@@ -45,14 +45,14 @@ class FamilyRemoteDataSource implements FamilyDataSource {
   @override
   Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     String familyId, {
-    String? cursor,
+    int? page,
   }) =>
       guardedRequest(
         'FamilyRemoteDataSource.getProducts',
         () async {
           final response = await _network.get(
             ApiEndPoint.familyProducts(familyId),
-            queryParameters: {'cursor': ?cursor},
+            queryParameters: {'page': ?page},
           );
           return ProductSummaryModel.pageFrom(checkedResponse(response).json);
         },
@@ -102,7 +102,7 @@ class FamilyMockDataSource implements FamilyDataSource {
   @override
   Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     String familyId, {
-    String? cursor,
+    int? page,
   }) =>
       guardedRequest(
         'FamilyMockDataSource.getProducts',

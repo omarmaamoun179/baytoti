@@ -10,7 +10,7 @@ abstract class FamilyRepository {
 
   Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     String familyId, {
-    String? cursor,
+    int? page,
   });
 
   Future<Either<Failure, bool>> setFollowing(String familyId, bool following);

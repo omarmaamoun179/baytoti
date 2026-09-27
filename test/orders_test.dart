@@ -175,9 +175,9 @@ void main() {
     test('a query omits what it does not filter on', () {
       expect(const OrdersQuery().toQueryParameters(), isEmpty);
       expect(
-        const OrdersQuery(status: OrderStatus.delivered, cursor: 'c2')
+        const OrdersQuery(status: OrderStatus.delivered, page: 2)
             .toQueryParameters(),
-        {'status': 'delivered', 'cursor': 'c2'},
+        {'status': 'delivered', 'page': 2},
       );
     });
   });
@@ -194,7 +194,7 @@ void main() {
               'total_display': '1.000 KWD',
             },
           ],
-          'next_cursor': 'n2',
+          'meta': {'current_page': 1, 'last_page': 2},
         },
       );
 
@@ -205,7 +205,8 @@ void main() {
       expect(network.queryParameters, {'status': 'ready'});
       final page = result.getOrElse(() => throw StateError('failed'));
       expect(page.items.single.status, OrderStatus.ready);
-      expect(page.nextCursor, 'n2');
+      expect(page.hasMore, isTrue);
+      expect(page.nextPage, 2);
     });
 
     test('a missing order reads as not found', () async {

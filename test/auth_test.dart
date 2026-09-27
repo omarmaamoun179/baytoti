@@ -40,6 +40,9 @@ class _MemoryLocal implements AuthLocalDataSource {
   }
 }
 
+const _newPhone = '+96555512345';
+const _seededPhone = '+96551502244';
+
 void main() {
   late FixtureBackend backend;
   late _MemoryLocal local;
@@ -54,29 +57,70 @@ void main() {
     );
   });
 
-  Future<OtpChallenge> challenge({AuthMode mode = AuthMode.login}) async =>
-      (await repository.requestOtp(RequestOtpParams(
-        phone: '+96551502244',
-        mode: mode,
-        fullName: mode == AuthMode.signup ? 'مريم الكندري' : null,
-      )))
-          .getOrElse(() => throw StateError('no challenge'));
+  Future<OtpChallenge> registerAndRequestOtp({String phone = _newPhone}) async {
+    final registered = await repository.register(RegisterParams(
+      name: 'مريم الكندري',
+      email: 'mariam@example.com',
+      phone: phone,
+      password: 'password123',
+      passwordConfirmation: 'password123',
+    ));
+    registered.getOrElse(() => throw StateError('registration refused'));
 
-  group('the OTP contract', () {
-    test('a request answers the request id, timers and digit count', () async {
-      final otp = await challenge();
+    final challenge = await repository.requestOtp(RequestOtpParams(phone: phone));
+    return challenge.getOrElse(() => throw StateError('no challenge'));
+  }
 
-      expect(otp.requestId, isNotEmpty);
+  group('registration and verification', () {
+    test('registering answers no token yet, awaiting a code', () async {
+      final result = await repository.register(RegisterParams(
+        name: 'مريم الكندري',
+        email: 'mariam@example.com',
+        phone: _newPhone,
+        password: 'password123',
+        passwordConfirmation: 'password123',
+      ));
+
+      final outcome = result.getOrElse(() => throw StateError('refused'));
+      expect(outcome, isA<AwaitingVerification>());
+      expect((outcome as AwaitingVerification).phone, _newPhone);
+      expect(local.tokens, isNull);
+    });
+
+    test('registering the same phone twice is refused', () async {
+      await repository.register(RegisterParams(
+        name: 'مريم الكندري',
+        email: 'mariam@example.com',
+        phone: _newPhone,
+        password: 'password123',
+        passwordConfirmation: 'password123',
+      ));
+
+      final result = await repository.register(RegisterParams(
+        name: 'مريم الكندري',
+        email: 'mariam@example.com',
+        phone: _newPhone,
+        password: 'password123',
+        passwordConfirmation: 'password123',
+      ));
+
+      final failure = result.fold((f) => f, (_) => null);
+      expect(failure, isA<ValidationFailure>());
+    });
+
+    test('a request answers the timers and digit count', () async {
+      final otp = await registerAndRequestOtp();
+
       expect(otp.digits, 4);
       expect(otp.resendAfter, 30);
-      expect(otp.phone, '+96551502244');
+      expect(otp.phone, _newPhone);
     });
 
     test('a verified code stores the tokens and the customer', () async {
-      final otp = await challenge(mode: AuthMode.signup);
+      final otp = await registerAndRequestOtp();
 
       final result = await repository.verifyOtp(
-        VerifyOtpParams(requestId: otp.requestId, code: '4821'),
+        VerifyOtpParams(phone: otp.phone, otp: '4821'),
       );
 
       final session = result.getOrElse(() => throw StateError('refused'));
@@ -87,15 +131,56 @@ void main() {
     });
 
     test('a wrong code is refused with its contract code', () async {
-      final otp = await challenge();
+      final otp = await registerAndRequestOtp();
 
       final result = await repository.verifyOtp(
-        VerifyOtpParams(requestId: otp.requestId, code: '0000'),
+        VerifyOtpParams(phone: otp.phone, otp: '0000'),
       );
 
       final failure = result.fold((f) => f, (_) => null);
       expect(failure, isA<ServerFailure>());
       expect(failure?.code, 'otp_invalid');
+      expect(local.tokens, isNull);
+    });
+  });
+
+  group('login', () {
+    test('the seeded verified account signs in with no code needed', () async {
+      final result = await repository.login(
+        LoginParams(phone: _seededPhone, password: 'anything'),
+      );
+
+      final outcome = result.getOrElse(() => throw StateError('refused'));
+      expect(outcome, isA<SignedIn>());
+      expect((outcome as SignedIn).customer.phone, _seededPhone);
+      expect(local.tokens?.accessToken, isNotEmpty);
+    });
+
+    test('an unregistered phone is refused', () async {
+      final result = await repository.login(
+        LoginParams(phone: '+96599999999', password: 'anything'),
+      );
+
+      final failure = result.fold((f) => f, (_) => null);
+      expect(failure, isA<ServerFailure>());
+      expect(local.tokens, isNull);
+    });
+
+    test('an unverified account is sent back to verification', () async {
+      await repository.register(RegisterParams(
+        name: 'مريم الكندري',
+        email: 'mariam@example.com',
+        phone: _newPhone,
+        password: 'password123',
+        passwordConfirmation: 'password123',
+      ));
+
+      final result = await repository.login(
+        LoginParams(phone: _newPhone, password: 'password123'),
+      );
+
+      final outcome = result.getOrElse(() => throw StateError('refused'));
+      expect(outcome, isA<AwaitingVerification>());
       expect(local.tokens, isNull);
     });
   });
@@ -125,10 +210,8 @@ void main() {
     });
 
     test('a stored session is restored and signs the notifier in', () async {
-      final otp = await challenge();
-      await repository.verifyOtp(
-        VerifyOtpParams(requestId: otp.requestId, code: '1234'),
-      );
+      final otp = await registerAndRequestOtp();
+      await repository.verifyOtp(VerifyOtpParams(phone: otp.phone, otp: '1234'));
 
       await cubit.restoreSession();
 
@@ -137,10 +220,8 @@ void main() {
     });
 
     test('signing out forgets the session everywhere', () async {
-      final otp = await challenge();
-      await repository.verifyOtp(
-        VerifyOtpParams(requestId: otp.requestId, code: '1234'),
-      );
+      final otp = await registerAndRequestOtp();
+      await repository.verifyOtp(VerifyOtpParams(phone: otp.phone, otp: '1234'));
       await cubit.restoreSession();
 
       await cubit.signOut();
@@ -160,7 +241,7 @@ void main() {
       cubit = OtpVerifyCubit(
         VerifyOtpUseCase(repository),
         ResendOtpUseCase(repository),
-        await challenge(),
+        await registerAndRequestOtp(),
       );
 
       for (final digit in ['1', '2', '3', '4', '5']) {
@@ -177,7 +258,7 @@ void main() {
       cubit = OtpVerifyCubit(
         VerifyOtpUseCase(repository),
         ResendOtpUseCase(repository),
-        await challenge(),
+        await registerAndRequestOtp(),
       );
       for (final digit in ['0', '0', '0', '0']) {
         cubit.addDigit(digit);
@@ -195,7 +276,7 @@ void main() {
       cubit = OtpVerifyCubit(
         VerifyOtpUseCase(repository),
         ResendOtpUseCase(repository),
-        await challenge(),
+        await registerAndRequestOtp(),
       );
       for (final digit in ['4', '8', '2', '1']) {
         cubit.addDigit(digit);

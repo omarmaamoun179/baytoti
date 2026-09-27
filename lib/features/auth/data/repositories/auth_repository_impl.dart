@@ -1,17 +1,55 @@
 import 'package:dartz/dartz.dart';
 
 import '../../../../core/domain/failure.dart';
+import '../../../../core/network/token_store.dart';
 import '../../domain/entities/customer.dart';
 import '../../domain/entities/otp_challenge.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_data_source.dart';
 import '../datasources/auth_local_data_source.dart';
+import '../models/auth_models.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthDataSource _remote;
   final AuthLocalDataSource _local;
 
   AuthRepositoryImpl(this._remote, this._local);
+
+  @override
+  Future<Either<Failure, AuthOutcome>> register(RegisterParams params) async {
+    final result = await _remote.register(params);
+    return result.fold(
+      (failure) async => Left(failure),
+      (payload) => _settle(payload, fallbackPhone: params.phone),
+    );
+  }
+
+  @override
+  Future<Either<Failure, AuthOutcome>> login(LoginParams params) async {
+    final result = await _remote.login(params);
+    return result.fold(
+      (failure) async => Left(failure),
+      (payload) => _settle(payload, fallbackPhone: params.phone),
+    );
+  }
+
+  Future<Either<Failure, AuthOutcome>> _settle(
+    AuthAccountPayload payload, {
+    required String fallbackPhone,
+  }) async {
+    final token = payload.token;
+    if (token == null || token.isEmpty) {
+      final phone =
+          payload.customer.phone.isEmpty ? fallbackPhone : payload.customer.phone;
+      return Right(AwaitingVerification(phone));
+    }
+
+    final saved = await _local.saveSession(
+      TokenPair(accessToken: token),
+      payload.customer.verifiedCopy(),
+    );
+    return saved.map((_) => SignedIn(payload.customer.verifiedCopy()));
+  }
 
   @override
   Future<Either<Failure, OtpChallenge>> requestOtp(RequestOtpParams params) =>

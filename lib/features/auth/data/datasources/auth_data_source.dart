@@ -11,6 +11,10 @@ import '../../domain/entities/otp_challenge.dart';
 import '../models/auth_models.dart';
 
 abstract class AuthDataSource {
+  Future<Either<Failure, AuthAccountPayload>> register(RegisterParams params);
+
+  Future<Either<Failure, AuthAccountPayload>> login(LoginParams params);
+
   Future<Either<Failure, OtpChallengeModel>> requestOtp(RequestOtpParams params);
 
   Future<Either<Failure, OtpChallengeModel>> resendOtp(OtpChallenge challenge);
@@ -26,6 +30,44 @@ class AuthRemoteDataSource implements AuthDataSource {
   AuthRemoteDataSource(this._network);
 
   @override
+  Future<Either<Failure, AuthAccountPayload>> register(
+    RegisterParams params,
+  ) =>
+      guardedRequest(
+        'AuthRemoteDataSource.register',
+        () async {
+          final response = await _network.post(
+            ApiEndPoint.register,
+            skipAuthRefresh: true,
+            data: {
+              'name': params.name.trim(),
+              'email': params.email.trim(),
+              'phone': params.phone,
+              'password': params.password,
+              'password_confirmation': params.passwordConfirmation,
+            },
+          );
+          return AuthOutcomeModel.readAccount(checkedResponse(response).json);
+        },
+        fallbackMessage: 'auth_failed',
+      );
+
+  @override
+  Future<Either<Failure, AuthAccountPayload>> login(LoginParams params) =>
+      guardedRequest(
+        'AuthRemoteDataSource.login',
+        () async {
+          final response = await _network.post(
+            ApiEndPoint.login,
+            skipAuthRefresh: true,
+            data: {'login': params.phone, 'password': params.password},
+          );
+          return AuthOutcomeModel.readAccount(checkedResponse(response).json);
+        },
+        fallbackMessage: 'auth_failed',
+      );
+
+  @override
   Future<Either<Failure, OtpChallengeModel>> requestOtp(
     RequestOtpParams params,
   ) =>
@@ -35,16 +77,12 @@ class AuthRemoteDataSource implements AuthDataSource {
           final response = await _network.post(
             ApiEndPoint.requestOtp,
             skipAuthRefresh: true,
-            data: {
-              'phone': params.phone,
-              'mode': params.mode.wire,
-              if (params.mode == AuthMode.signup) 'full_name': params.fullName,
-            },
+            data: {'phone': params.phone},
           );
           return OtpChallengeModel.fromJson(
             checkedResponse(response).json,
             phone: params.phone,
-            mode: params.mode,
+            mode: AuthMode.login,
           );
         },
         fallbackMessage: 'auth_failed',
@@ -54,23 +92,7 @@ class AuthRemoteDataSource implements AuthDataSource {
   Future<Either<Failure, OtpChallengeModel>> resendOtp(
     OtpChallenge challenge,
   ) =>
-      guardedRequest(
-        'AuthRemoteDataSource.resendOtp',
-        () async {
-          final response = await _network.post(
-            ApiEndPoint.resendOtp,
-            skipAuthRefresh: true,
-            data: {'request_id': challenge.requestId},
-          );
-          final json = checkedResponse(response).json;
-          return OtpChallengeModel.fromJson(
-            {'request_id': challenge.requestId, ...json},
-            phone: challenge.phone,
-            mode: challenge.mode,
-          );
-        },
-        fallbackMessage: 'auth_failed',
-      );
+      requestOtp(RequestOtpParams(phone: challenge.phone));
 
   @override
   Future<Either<Failure, AuthPayloadModel>> verifyOtp(
@@ -82,7 +104,7 @@ class AuthRemoteDataSource implements AuthDataSource {
           final response = await _network.post(
             ApiEndPoint.verifyOtp,
             skipAuthRefresh: true,
-            data: {'request_id': params.requestId, 'code': params.code},
+            data: {'phone': params.phone, 'otp': params.otp},
           );
           return AuthPayloadModel.fromJson(checkedResponse(response).json);
         },
@@ -106,6 +128,40 @@ class AuthMockDataSource implements AuthDataSource {
   AuthMockDataSource(this._backend, this._language);
 
   @override
+  Future<Either<Failure, AuthAccountPayload>> register(
+    RegisterParams params,
+  ) =>
+      guardedRequest(
+        'AuthMockDataSource.register',
+        () async {
+          await _backend.wait();
+          return AuthOutcomeModel.readAccount(_backend.register(
+            name: params.name,
+            email: params.email,
+            phone: params.phone,
+            password: params.password,
+            lang: await _language(),
+          ));
+        },
+        fallbackMessage: 'auth_failed',
+      );
+
+  @override
+  Future<Either<Failure, AuthAccountPayload>> login(LoginParams params) =>
+      guardedRequest(
+        'AuthMockDataSource.login',
+        () async {
+          await _backend.wait();
+          return AuthOutcomeModel.readAccount(_backend.login(
+            phone: params.phone,
+            password: params.password,
+            lang: await _language(),
+          ));
+        },
+        fallbackMessage: 'auth_failed',
+      );
+
+  @override
   Future<Either<Failure, OtpChallengeModel>> requestOtp(
     RequestOtpParams params,
   ) =>
@@ -113,15 +169,11 @@ class AuthMockDataSource implements AuthDataSource {
         'AuthMockDataSource.requestOtp',
         () async {
           await _backend.wait();
-          final json = _backend.requestOtp(
-            phone: params.phone,
-            mode: params.mode.wire,
-            fullName: params.fullName,
-          );
+          final json = _backend.requestOtp(phone: params.phone);
           return OtpChallengeModel.fromJson(
             json,
             phone: params.phone,
-            mode: params.mode,
+            mode: AuthMode.login,
           );
         },
         fallbackMessage: 'auth_failed',
@@ -131,22 +183,7 @@ class AuthMockDataSource implements AuthDataSource {
   Future<Either<Failure, OtpChallengeModel>> resendOtp(
     OtpChallenge challenge,
   ) =>
-      guardedRequest(
-        'AuthMockDataSource.resendOtp',
-        () async {
-          await _backend.wait();
-          final json = _backend.resendOtp(
-            challenge.requestId,
-            await _language(),
-          );
-          return OtpChallengeModel.fromJson(
-            json,
-            phone: challenge.phone,
-            mode: challenge.mode,
-          );
-        },
-        fallbackMessage: 'auth_failed',
-      );
+      requestOtp(RequestOtpParams(phone: challenge.phone));
 
   @override
   Future<Either<Failure, AuthPayloadModel>> verifyOtp(
@@ -157,8 +194,8 @@ class AuthMockDataSource implements AuthDataSource {
         () async {
           await _backend.wait();
           final json = _backend.verifyOtp(
-            params.requestId,
-            params.code,
+            params.phone,
+            params.otp,
             await _language(),
           );
           return AuthPayloadModel.fromJson(json);

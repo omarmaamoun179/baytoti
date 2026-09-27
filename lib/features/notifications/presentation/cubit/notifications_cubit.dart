@@ -46,18 +46,19 @@ class NotificationsCubit extends BaseCubit<NotificationsState> {
   }
 
   Future<void> loadMore() async {
-    final cursor = state.page.nextCursor;
     if (_firstPage != null ||
         !state.isLoaded ||
         state.isLoadingMore ||
-        cursor == null) {
+        !state.page.hasMore) {
       return;
     }
 
     final generation = _generation;
     emit(state.copyWith(isLoadingMore: true));
 
-    final result = await _getNotifications(NotificationsQuery(cursor: cursor));
+    final result = await _getNotifications(
+      NotificationsQuery(page: state.page.nextPage),
+    );
     if (generation != _generation) return;
 
     result.fold(

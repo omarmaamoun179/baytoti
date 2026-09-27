@@ -16,15 +16,15 @@ void main() {
       expect(response.ensureOk, returnsNormally);
     });
 
-    test('an error carries its code, message, field and details', () {
+    test('an error carries its message, status and field errors', () {
       const response = ApiResponse(
         statusCode: 422,
         body: {
-          'error': {
-            'code': 'stock_insufficient',
-            'message': 'الكمية المطلوبة غير متوفرة',
-            'field': 'items[0].quantity',
-            'details': {'available': 3},
+          'success': false,
+          'message': 'الكمية المطلوبة غير متوفرة',
+          'data': null,
+          'errors': {
+            'items.0.quantity': ['الكمية المطلوبة غير متوفرة'],
           },
         },
       );
@@ -33,12 +33,12 @@ void main() {
         response.ensureOk,
         throwsA(
           isA<RequestException>()
-              .having((e) => e.code, 'code', 'stock_insufficient')
+              .having((e) => e.code, 'code', isNull)
               .having((e) => e.statusCode, 'status', 422)
               .having((e) => e.errors, 'errors', {
-                'items[0].quantity': 'الكمية المطلوبة غير متوفرة',
+                'items.0.quantity': ['الكمية المطلوبة غير متوفرة'],
               })
-              .having((e) => e.details, 'details', {'available': 3}),
+              .having((e) => e.details, 'details', isNull),
         ),
       );
     });
@@ -82,18 +82,21 @@ void main() {
   });
 
   group('Money', () {
-    test('reads fils and the server display', () {
-      final money = Money.of(
-        const {'price_fils': 4250, 'price_display': '4.250 د.ك'},
-        'price',
-      );
+    test('reads a plain decimal amount as fils', () {
+      final money = Money.of(const {'base_price': 4.25}, 'base_price');
 
       expect(money.fils, 4250);
       expect(money.display, '4.250 د.ك');
     });
 
+    test('reads a decimal amount sent as a string', () {
+      final money = Money.of(const {'base_price': '4.250'}, 'base_price');
+
+      expect(money.fils, 4250);
+    });
+
     test('an absent amount is null, not zero', () {
-      expect(Money.maybeOf(const {'price_fils': 1}, 'compare_at'), isNull);
+      expect(Money.maybeOf(const {'base_price': 1}, 'compare_price'), isNull);
     });
 
     test('formats three decimals with Western digits in both languages', () {

@@ -33,16 +33,20 @@ class ExploreFeed extends Equatable {
   final List<String> hashtags;
   final List<RisingProduct> rising;
   final List<ProductSummary> mostViewed;
-  final String? nextCursor;
+  final int currentPage;
+  final int lastPage;
 
   const ExploreFeed({
     this.hashtags = const [],
     this.rising = const [],
     this.mostViewed = const [],
-    this.nextCursor,
+    this.currentPage = 1,
+    this.lastPage = 1,
   });
 
-  bool get hasMore => nextCursor != null;
+  int get nextPage => currentPage + 1;
+
+  bool get hasMore => currentPage < lastPage;
 
   bool get isEmpty => hashtags.isEmpty && rising.isEmpty && mostViewed.isEmpty;
 
@@ -50,9 +54,11 @@ class ExploreFeed extends Equatable {
         hashtags: hashtags,
         rising: rising,
         mostViewed: [...mostViewed, ...next.mostViewed],
-        nextCursor: next.nextCursor,
+        currentPage: next.currentPage,
+        lastPage: next.lastPage,
       );
 
   @override
-  List<Object?> get props => [hashtags, rising, mostViewed, nextCursor];
+  List<Object?> get props =>
+      [hashtags, rising, mostViewed, currentPage, lastPage];
 }

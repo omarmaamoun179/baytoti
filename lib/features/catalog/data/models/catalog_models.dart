@@ -73,8 +73,8 @@ class ProductSummaryModel extends ProductSummary {
         id: json['id'] as String,
         name: json['name'] as String,
         family: FamilyRefModel.fromJson(jsonMap(json['family'])),
-        price: Money.of(json, 'price'),
-        compareAt: Money.maybeOf(json, 'compare_at'),
+        price: Money.of(json, 'base_price'),
+        compareAt: Money.maybeOf(json, 'compare_price'),
         badge: ProductBadge.fromWire(json['badge']),
         rating: jsonDouble(json['rating']),
         inStock: json['in_stock'] as bool? ?? true,
@@ -85,12 +85,15 @@ class ProductSummaryModel extends ProductSummary {
   static List<ProductSummary> listFrom(Object? value) =>
       [for (final item in jsonList(value)) ProductSummaryModel.fromJson(item)];
 
-  static Paged<ProductSummary> pageFrom(Map<String, dynamic> json) =>
-      Paged<ProductSummary>(
-        items: listFrom(json['items']),
-        nextCursor: json['next_cursor'] as String?,
-        total: jsonInt(json['total']),
-      );
+  static Paged<ProductSummary> pageFrom(Map<String, dynamic> json) {
+    final meta = jsonMap(json['meta']);
+    return Paged<ProductSummary>(
+      items: listFrom(json['items']),
+      currentPage: jsonInt(meta['current_page']) ?? 1,
+      lastPage: jsonInt(meta['last_page']) ?? 1,
+      total: jsonInt(meta['total']),
+    );
+  }
 }
 
 class CategoryModel extends Category {

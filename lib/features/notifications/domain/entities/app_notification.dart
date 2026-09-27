@@ -89,12 +89,12 @@ class NotificationFeed extends Equatable {
 }
 
 class NotificationsQuery extends Equatable {
-  final String? cursor;
+  final int? page;
 
-  const NotificationsQuery({this.cursor});
+  const NotificationsQuery({this.page});
 
-  Map<String, dynamic> toQueryParameters() => {'cursor': ?cursor};
+  Map<String, dynamic> toQueryParameters() => {'page': ?page};
 
   @override
-  List<Object?> get props => [cursor];
+  List<Object?> get props => [page];
 }

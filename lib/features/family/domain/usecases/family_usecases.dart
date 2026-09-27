@@ -21,12 +21,12 @@ class GetFamilyUseCase
 
 class FamilyProductsParams extends Equatable {
   final String familyId;
-  final String? cursor;
+  final int? page;
 
-  const FamilyProductsParams({required this.familyId, this.cursor});
+  const FamilyProductsParams({required this.familyId, this.page});
 
   @override
-  List<Object?> get props => [familyId, cursor];
+  List<Object?> get props => [familyId, page];
 }
 
 class GetFamilyProductsUseCase
@@ -40,7 +40,7 @@ class GetFamilyProductsUseCase
   Future<Either<Failure, Paged<ProductSummary>>> call(
     FamilyProductsParams params,
   ) =>
-      _repository.getProducts(params.familyId, cursor: params.cursor);
+      _repository.getProducts(params.familyId, page: params.page);
 }
 
 class SetFollowingParams extends Equatable {

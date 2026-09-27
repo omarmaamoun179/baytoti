@@ -44,17 +44,19 @@ ProductSummary _summary(String id, [String name = 'Cake']) => ProductSummary(
       price: const Money(fils: 4250, display: '4.250 KWD'),
     );
 
-Paged<ProductSummary> _page(List<String> ids, [String? next]) =>
-    Paged(items: [for (final id in ids) _summary(id)], nextCursor: next);
+Paged<ProductSummary> _page(List<String> ids, [int lastPage = 1]) => Paged(
+      items: [for (final id in ids) _summary(id)],
+      lastPage: lastPage,
+    );
 
 class _FakeFamilyRepository implements FamilyRepository {
   Either<Failure, FamilyProfile> family = const Right(_family);
-  final Map<String?, Either<Failure, Paged<ProductSummary>>> pages = {
-    null: Right(_page(['prd_1', 'prd_2'], 'c2')),
-    'c2': Right(_page(['prd_3'])),
+  final Map<int?, Either<Failure, Paged<ProductSummary>>> pages = {
+    null: Right(_page(['prd_1', 'prd_2'], 2)),
+    2: Right(_page(['prd_3'])),
   };
-  final Map<String?, Completer<void>> gates = {};
-  final List<String?> cursors = [];
+  final Map<int?, Completer<void>> gates = {};
+  final List<int?> pageRequests = [];
   Completer<Either<Failure, bool>> follow = Completer();
   final List<bool> follows = [];
 
@@ -65,11 +67,11 @@ class _FakeFamilyRepository implements FamilyRepository {
   @override
   Future<Either<Failure, Paged<ProductSummary>>> getProducts(
     String familyId, {
-    String? cursor,
+    int? page,
   }) async {
-    cursors.add(cursor);
-    await gates[cursor]?.future;
-    return pages[cursor]!;
+    pageRequests.add(page);
+    await gates[page]?.future;
+    return pages[page]!;
   }
 
   @override
@@ -228,7 +230,7 @@ void main() {
       expect(cubit.state.status, FamilyStatus.loaded);
       expect(cubit.state.family, _family);
       expect(cubit.state.products.items.length, 2);
-      expect(repository.cursors, [null]);
+      expect(repository.pageRequests, [null]);
     });
 
     test('a failed family read is an error', () async {
@@ -252,27 +254,27 @@ void main() {
     test('the next page is appended once, however often it is asked for',
         () async {
       await cubit.load('fam_1');
-      repository.gates['c2'] = Completer();
+      repository.gates[2] = Completer();
 
       final first = cubit.loadMore();
       final second = cubit.loadMore();
       expect(cubit.state.isLoadingMore, isTrue);
 
-      repository.gates['c2']!.complete();
+      repository.gates[2]!.complete();
       await Future.wait([first, second]);
 
-      expect(repository.cursors, [null, 'c2']);
+      expect(repository.pageRequests, [null, 2]);
       expect(cubit.state.products.items.map((p) => p.id),
           ['prd_1', 'prd_2', 'prd_3']);
       expect(cubit.state.products.hasMore, isFalse);
 
       await cubit.loadMore();
-      expect(repository.cursors, [null, 'c2']);
+      expect(repository.pageRequests, [null, 2]);
     });
 
     test('a failed next page keeps the list and reports', () async {
       await cubit.load('fam_1');
-      repository.pages['c2'] = const Left(NetworkFailure(message: 'offline'));
+      repository.pages[2] = const Left(NetworkFailure(message: 'offline'));
 
       await cubit.loadMore();
 
@@ -284,11 +286,11 @@ void main() {
 
     test('a page from before a reload is dropped', () async {
       await cubit.load('fam_1');
-      repository.gates['c2'] = Completer();
+      repository.gates[2] = Completer();
 
       final stale = cubit.loadMore();
       await cubit.load('fam_1');
-      repository.gates['c2']!.complete();
+      repository.gates[2]!.complete();
       await stale;
 
       expect(cubit.state.products.items.length, 2);
