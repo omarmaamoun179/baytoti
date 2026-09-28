@@ -239,8 +239,12 @@ void _registerProfileFeature() {
   );
 
   sl.registerLazySingleton(() => GetProfileUseCase(sl<ProfileRepository>()));
+  sl.registerLazySingleton(
+    () => UpdateProfileUseCase(sl<ProfileRepository>()),
+  );
 
   sl.registerFactory(() => ProfileCubit(sl()));
+  sl.registerFactory(() => EditProfileCubit(sl()));
 }
 
 void _registerExploreFeature() {

@@ -14,6 +14,7 @@ class TrustedStoreCard extends StatelessWidget {
   static const double _bannerHeight = 92;
   static const double _logoSize = 44;
   static const double imageHeight = _bannerHeight + _logoSize / 2;
+  static const double height = 190;
 
   final TrustedStore store;
   final VoidCallback onTap;
@@ -47,6 +48,7 @@ class TrustedStoreCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         width: width,
+        height: height,
         decoration: BoxDecoration(
           color: p.surface,
           border: Border.all(color: p.divider),
@@ -108,7 +110,7 @@ class TrustedStoreCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       meta,
-                      maxLines: 2,
+                      maxLines: family.rating == null ? 2 : 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppStrings.w400(11, 1.45).c(p.neutral700),
                     ),

@@ -1,7 +1,15 @@
+import 'dart:io';
+
 import 'package:baytoti/core/app/session_notifier.dart';
 import 'package:baytoti/core/domain/failure.dart';
 import 'package:baytoti/core/network/api_endpoints.dart';
 import 'package:baytoti/core/network/token_store.dart';
+import 'package:baytoti/core/theme/app_theme.dart';
+import 'package:baytoti/core/utils/screen_util_scope.dart';
+import 'package:baytoti/core/widgets/app_text_field.dart';
+import 'package:baytoti/core/widgets/avatar_photo.dart';
+import 'package:baytoti/core/widgets/avatar_picker.dart';
+import 'package:baytoti/core/widgets/phone_text_form_field.dart';
 import 'package:baytoti/features/auth/data/datasources/auth_data_source.dart';
 import 'package:baytoti/features/auth/data/datasources/auth_local_data_source.dart';
 import 'package:baytoti/features/auth/data/models/auth_models.dart';
@@ -12,7 +20,12 @@ import 'package:baytoti/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:baytoti/features/auth/presentation/cubit/auth_state.dart';
 import 'package:baytoti/features/auth/presentation/cubit/otp_request_cubit.dart';
 import 'package:baytoti/features/auth/presentation/cubit/otp_verify_cubit.dart';
+import 'package:baytoti/features/auth/presentation/widgets/auth_form.dart';
+import 'package:baytoti/features/auth/presentation/widgets/terms_checkbox.dart';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/fake_network.dart';
@@ -53,10 +66,26 @@ const _register = RegisterParams(
   passwordConfirmation: 'password123',
 );
 
+Finder _input(String labelKey) => find.descendant(
+      of: find.byWidgetPredicate(
+        (w) => w is LabeledField && w.label == labelKey.tr(),
+      ),
+      matching: find.byType(TextField),
+    );
+
 void main() {
   late FakeNetwork network;
   late _MemoryLocal local;
   late AuthRepositoryImpl repository;
+  late Directory temp;
+
+  setUp(() => temp = Directory.systemTemp.createTempSync('avatar'));
+
+  tearDown(() => temp.deleteSync(recursive: true));
+
+  String photo() => (File('${temp.path}/me.png')
+        ..writeAsBytesSync(const [0x89, 0x50, 0x4E, 0x47]))
+      .path;
 
   setUp(() {
     network = FakeNetwork();
@@ -98,6 +127,32 @@ void main() {
       final outcome = result.getOrElse(() => throw StateError('refused'));
       expect(outcome, const AwaitingVerification('96555512345'));
       expect(local.tokens, isNull);
+    });
+
+    test('a photo turns the same account into a multipart POST', () async {
+      final path = photo();
+
+      await repository.register(RegisterParams(
+        name: _register.name,
+        email: _register.email,
+        phone: _register.phone,
+        password: _register.password,
+        passwordConfirmation: _register.passwordConfirmation,
+        avatarPath: path,
+      ));
+
+      final form = network.last('POST').data! as FormData;
+      expect(network.last('POST').url, ApiEndPoint.register);
+      expect(Map.fromEntries(form.fields), {
+        'name': 'مريم الكندري',
+        'email': 'mariam@example.com',
+        'phone': '96555512345',
+        'password': 'password123',
+        'password_confirmation': 'password123',
+      });
+      expect(form.files.single.key, 'avatar');
+      expect(form.files.single.value.filename, 'me.png');
+      expect('${form.files.single.value.contentType}', 'image/png');
     });
 
     test('the live validation answer becomes field errors', () async {
@@ -302,6 +357,22 @@ void main() {
       );
     });
 
+    test('the photo chosen on sign-up goes out with the account', () async {
+      await cubit.submit(
+        phone: _phone,
+        password: 'password123',
+        fullName: 'مريم الكندري',
+        email: 'mariam@example.com',
+        passwordConfirmation: 'password123',
+        avatarPath: photo(),
+      );
+
+      final register =
+          network.calls.firstWhere((c) => c.url == ApiEndPoint.register);
+      expect((register.data! as FormData).files.single.key, 'avatar');
+      expect(cubit.state.status, OtpRequestStatus.sent);
+    });
+
     test('logging in to a verified account skips the code', () async {
       network.replySample(
         'POST',
@@ -426,6 +497,123 @@ void main() {
 
       expect(cubit.state.status, OtpVerifyStatus.verified);
       expect(cubit.state.session?.customer.id, '41');
+    });
+  });
+
+  group('the sign-up form', () {
+    late List<String?> submitted;
+    late int picks;
+
+    setUp(() {
+      submitted = [];
+      picks = 0;
+    });
+
+    Future<void> pumpForm(
+      WidgetTester tester, {
+      AuthMode mode = AuthMode.signup,
+      String? picked,
+    }) async {
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ScreenUtilScope(
+        child: Builder(
+          builder: (_) => MaterialApp(
+            theme: AppTheme.light,
+            home: Scaffold(
+              body: SingleChildScrollView(
+                child: AuthForm(
+                  mode: mode,
+                  isSubmitting: false,
+                  onInvalid: (_) {},
+                  onPickPhoto: () async {
+                    picks++;
+                    return picked;
+                  },
+                  onSubmit: ({
+                    required phone,
+                    required password,
+                    fullName,
+                    email,
+                    passwordConfirmation,
+                    avatarPath,
+                  }) =>
+                      submitted.add(avatarPath),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ));
+    }
+
+    Future<void> fillAndSubmit(WidgetTester tester) async {
+      await tester.enterText(_input('auth_full_name'), 'مريم الكندري');
+      await tester.enterText(_input('auth_email'), 'mariam@example.com');
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(PhoneTextFormField),
+          matching: find.byType(TextField),
+        ),
+        '55512345',
+      );
+      await tester.enterText(_input('auth_password'), 'password123');
+      await tester.enterText(
+        _input('auth_password_confirmation'),
+        'password123',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(TermsCheckbox));
+      await tester.tap(find.text('auth_cta_signup'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('the photo is optional: signing up without one sends none',
+        (tester) async {
+      await pumpForm(tester);
+
+      expect(find.byType(AvatarPicker), findsOne);
+      expect(find.text('auth_add_photo'), findsOne);
+
+      await fillAndSubmit(tester);
+
+      expect(submitted, [null]);
+    });
+
+    testWidgets('a picked photo shows and goes out with the account',
+        (tester) async {
+      await pumpForm(tester, picked: '/device/me.png');
+
+      await tester.tap(find.text('auth_add_photo'));
+      await tester.pump();
+
+      expect(
+        tester.widget<AvatarPhoto>(find.byType(AvatarPhoto)).filePath,
+        '/device/me.png',
+      );
+      expect(find.text('profile_change_photo'), findsOne);
+
+      await fillAndSubmit(tester);
+
+      expect(submitted, ['/device/me.png']);
+    });
+
+    testWidgets('choosing nothing leaves the form without a photo',
+        (tester) async {
+      await pumpForm(tester);
+
+      await tester.tap(find.text('auth_add_photo'));
+      await tester.pump();
+
+      expect(picks, 1);
+      expect(find.text('auth_add_photo'), findsOne);
+    });
+
+    testWidgets('logging in asks for no photo', (tester) async {
+      await pumpForm(tester, mode: AuthMode.login);
+
+      expect(find.byType(AvatarPicker), findsNothing);
     });
   });
 }

@@ -95,6 +95,7 @@ class RegisterParams extends Equatable {
   final String phone;
   final String password;
   final String passwordConfirmation;
+  final String? avatarPath;
 
   const RegisterParams({
     required this.name,
@@ -102,10 +103,11 @@ class RegisterParams extends Equatable {
     required this.phone,
     required this.password,
     required this.passwordConfirmation,
+    this.avatarPath,
   });
 
   @override
-  List<Object?> get props => [name, email, phone];
+  List<Object?> get props => [name, email, phone, avatarPath];
 
   @override
   String toString() => 'RegisterParams($phone, $email, password: ***)';

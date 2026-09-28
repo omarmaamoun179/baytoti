@@ -286,6 +286,46 @@ void main() {
       expect(find.text('home_show_all'), findsNothing);
     });
 
+    testWidgets('every card has the same size whatever it shows',
+        (tester) async {
+      const long = 'وصف طويل جداً لا بد أن يلتف على أكثر من سطر واحد هنا وأكثر';
+      const stores = [
+        TrustedStore(
+          family: FamilyRef(id: '1', name: 'قصير'),
+          description: 'قصير',
+        ),
+        TrustedStore(
+          family: FamilyRef(id: '2', name: 'طويل', isVerified: true),
+          description: long,
+        ),
+        TrustedStore(
+          family: FamilyRef(
+            id: '3',
+            name: 'مطبخ بمعلومات كاملة',
+            city: 'الجيزة',
+            rating: 4.6,
+            productCount: 12,
+            isVerified: true,
+          ),
+          description: long,
+        ),
+      ];
+
+      await _pump(
+        tester,
+        TrustedStoreRail(stores: stores, onTap: (_) {}),
+      );
+
+      expect(tester.takeException(), isNull);
+      final sizes = tester
+          .widgetList<TrustedStoreCard>(find.byType(TrustedStoreCard))
+          .map((card) => tester.getSize(find.byWidget(card)))
+          .toSet();
+      expect(sizes, {
+        const Size(TrustedStoreCard.railWidth, TrustedStoreCard.height),
+      });
+    });
+
     testWidgets('a card fills the width it is given', (tester) async {
       await _pump(
         tester,

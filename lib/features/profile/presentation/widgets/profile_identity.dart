@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
 import '../../../../core/utils/phone.dart';
+import '../../../../core/widgets/avatar_photo.dart';
 
 class ProfileIdentity extends StatelessWidget {
   final String name;
@@ -25,7 +26,7 @@ class ProfileIdentity extends StatelessWidget {
       decoration: BoxDecoration(border: Border(bottom: p.rule)),
       child: Row(
         children: [
-          // SizedBox(width: 58, height: 58, child: NetworkPhoto(url: avatarUrl)),
+          AvatarPhoto(url: avatarUrl),
           const SizedBox(width: 14),
           Expanded(
             child: Column(

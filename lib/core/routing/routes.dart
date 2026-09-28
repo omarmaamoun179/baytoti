@@ -21,6 +21,7 @@ class AppRoutes {
   static const String checkoutSegment = 'checkout';
   static const String favouritesSegment = 'favourites';
   static const String addressesSegment = 'addresses';
+  static const String editProfileSegment = 'edit';
   static const String newSegment = 'new';
 
   static const String fromQuery = 'from';

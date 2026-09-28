@@ -7,6 +7,7 @@ import '../../../../core/utils/validators/validator_messages.dart';
 import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/app_text_field.dart';
+import '../../../../core/widgets/avatar_picker.dart';
 import '../../../../core/widgets/phone_text_form_field.dart';
 import '../../domain/entities/otp_challenge.dart';
 import 'terms_checkbox.dart';
@@ -21,8 +22,10 @@ class AuthForm extends StatefulWidget {
     String? fullName,
     String? email,
     String? passwordConfirmation,
+    String? avatarPath,
   }) onSubmit;
   final ValueChanged<String> onInvalid;
+  final Future<String?> Function() onPickPhoto;
 
   const AuthForm({
     super.key,
@@ -30,6 +33,7 @@ class AuthForm extends StatefulWidget {
     required this.isSubmitting,
     required this.onSubmit,
     required this.onInvalid,
+    required this.onPickPhoto,
     this.serverErrors = const {},
   });
 
@@ -45,6 +49,7 @@ class _AuthFormState extends State<AuthForm> {
   final _password = TextEditingController();
   final _passwordConfirmation = TextEditingController();
   String _e164 = '';
+  String? _avatarPath;
   bool _terms = false;
   Set<String> _invalid = const {};
 
@@ -58,6 +63,12 @@ class _AuthFormState extends State<AuthForm> {
     _password.dispose();
     _passwordConfirmation.dispose();
     super.dispose();
+  }
+
+  Future<void> _pickPhoto() async {
+    final path = await widget.onPickPhoto();
+    if (path == null || !mounted) return;
+    setState(() => _avatarPath = path);
   }
 
   void _submit() {
@@ -88,6 +99,7 @@ class _AuthFormState extends State<AuthForm> {
       fullName: _signup ? _name.text.trim() : null,
       email: _signup ? _email.text.trim() : null,
       passwordConfirmation: _signup ? _passwordConfirmation.text : null,
+      avatarPath: _signup ? _avatarPath : null,
     );
   }
 
@@ -104,6 +116,15 @@ class _AuthFormState extends State<AuthForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           if (_signup) ...[
+            AvatarPicker(
+              label: (_avatarPath == null
+                      ? 'auth_add_photo'
+                      : 'profile_change_photo')
+                  .tr(),
+              filePath: _avatarPath,
+              onPick: widget.isSubmitting ? null : _pickPhoto,
+            ),
+            const SizedBox(height: 16),
             LabeledField(
               label: 'auth_full_name'.tr(),
               child: AppTextField(

@@ -67,7 +67,7 @@ class _ProfileView extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     physics: const AlwaysScrollableScrollPhysics(),
                     children: [
-                      _buildIdentity(state.customer ?? session),
+                      _buildIdentity(session ?? state.customer),
                       ..._buildRows(context),
                       const SizedBox(height: 12),
                     ],
@@ -88,6 +88,10 @@ class _ProfileView extends StatelessWidget {
   );
 
   List<Widget> _buildRows(BuildContext context) => [
+        ProfileRow(
+          label: 'profile_edit'.tr(),
+          onTap: () => context.pushInTab(AppRoutes.editProfileSegment),
+        ),
         ProfileRow(
           label: 'profile_my_orders'.tr(),
           onTap: () => context.pushInTab(AppRoutes.orderSegment),

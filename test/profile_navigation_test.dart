@@ -9,6 +9,7 @@ import 'package:baytoti/features/auth/data/datasources/auth_data_source.dart';
 import 'package:baytoti/features/auth/data/datasources/auth_local_data_source.dart';
 import 'package:baytoti/features/auth/data/models/auth_models.dart';
 import 'package:baytoti/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:baytoti/features/auth/domain/entities/customer.dart';
 import 'package:baytoti/features/auth/domain/usecases/auth_usecases.dart';
 import 'package:baytoti/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:baytoti/features/cart/data/datasources/cart_data_source.dart';
@@ -55,8 +56,10 @@ void main() {
 
   tearDown(() => GetIt.instance.reset());
 
-  testWidgets('every profile row opens its own screen under the profile tab',
-      (tester) async {
+  Future<(GoRouter, AuthCubit)> pumpProfile(
+    WidgetTester tester, {
+    Customer? signedIn,
+  }) async {
     final network = FakeNetwork()
       ..replySample('GET', ApiEndPoint.me, 'profile/me.cloak_shape.json');
     GetIt.instance.registerFactory(
@@ -83,6 +86,7 @@ void main() {
     );
     addTearDown(authCubit.close);
     addTearDown(cartCubit.close);
+    if (signedIn != null) authCubit.completeSignIn(signedIn);
 
     final router = GoRouter(
       initialLocation: AppRoutes.profile,
@@ -92,6 +96,7 @@ void main() {
           builder: (_, _) => const ProfilePage(),
           routes: [
             for (final segment in [
+              AppRoutes.editProfileSegment,
               AppRoutes.orderSegment,
               AppRoutes.favouritesSegment,
               AppRoutes.addressesSegment,
@@ -144,10 +149,17 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 200));
     });
     await tester.pumpAndSettle();
+    return (router, authCubit);
+  }
+
+  testWidgets('every profile row opens its own screen under the profile tab',
+      (tester) async {
+    final (router, _) = await pumpProfile(tester);
 
     expect(find.text('Support'), findsNothing);
 
     for (final (label, path) in [
+      ('Edit profile', '/profile/edit'),
       ('My orders', '/profile/orders'),
       ('Favourites', '/profile/favourites'),
       ('Addresses', '/profile/addresses'),
@@ -162,5 +174,28 @@ void main() {
       router.pop();
       await tester.pumpAndSettle();
     }
+  });
+
+  testWidgets('a saved edit shows at once over the account read on opening',
+      (tester) async {
+    const signedIn = Customer(
+      id: '18',
+      fullName: 'Noura Al-Anzi',
+      phone: '96551502244',
+    );
+    final (_, authCubit) = await pumpProfile(tester, signedIn: signedIn);
+
+    expect(find.text('Noura Al-Anzi'), findsOneWidget);
+
+    authCubit.updateCustomer(const Customer(
+      id: '18',
+      fullName: 'Noura Alanzi',
+      phone: '96551502244',
+      avatarUrl: 'https://example.com/noura.jpg',
+    ));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Noura Alanzi'), findsOneWidget);
+    expect(find.text('Noura Al-Anzi'), findsNothing);
   });
 }

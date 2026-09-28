@@ -21,6 +21,7 @@ import '../../features/notifications/presentation/pages/notifications_page.dart'
 import '../../features/orders/presentation/pages/order_page.dart';
 import '../../features/orders/presentation/pages/orders_page.dart';
 import '../../features/product/presentation/pages/product_page.dart';
+import '../../features/profile/presentation/pages/edit_profile_page.dart';
 import '../../features/profile/presentation/pages/profile_page.dart';
 import '../../features/search/presentation/pages/search_page.dart';
 import '../../features/shell/presentation/pages/customer_shell.dart';
@@ -131,6 +132,10 @@ GoRoute _addressForm(String path) => GoRoute(
     );
 
 List<RouteBase> _account() => [
+      GoRoute(
+        path: AppRoutes.editProfileSegment,
+        builder: (context, state) => const EditProfilePage(),
+      ),
       GoRoute(
         path: AppRoutes.orderSegment,
         builder: (context, state) => const OrdersPage(),

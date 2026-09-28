@@ -59,6 +59,7 @@ import '../../features/profile/data/datasources/profile_data_source.dart';
 import '../../features/profile/data/repositories/profile_repository_impl.dart';
 import '../../features/profile/domain/repositories/profile_repository.dart';
 import '../../features/profile/domain/usecases/profile_usecases.dart';
+import '../../features/profile/presentation/cubit/edit_profile_cubit.dart';
 import '../../features/profile/presentation/cubit/profile_cubit.dart';
 import '../../features/explore/data/datasources/explore_data_source.dart';
 import '../../features/explore/data/repositories/explore_repository_impl.dart';

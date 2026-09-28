@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/di/di_exports.dart';
 import '../../../../core/routing/routes.dart';
 import '../../../../core/theme/app_palette.dart';
+import '../../../../core/utils/photo_picker.dart';
 import '../../../../core/widgets/app_header.dart';
 import '../../../../core/widgets/app_toast.dart';
 import '../../domain/entities/otp_challenge.dart';
@@ -109,12 +110,14 @@ class _AuthView extends StatelessWidget {
                             serverErrors: state.fieldErrors,
                             onInvalid: (message) =>
                                 showAppToast(context, message, isError: true),
+                            onPickPhoto: () => pickGalleryPhoto(context),
                             onSubmit: ({
                               required phone,
                               required password,
                               fullName,
                               email,
                               passwordConfirmation,
+                              avatarPath,
                             }) =>
                                 context.read<OtpRequestCubit>().submit(
                                       phone: phone,
@@ -123,6 +126,7 @@ class _AuthView extends StatelessWidget {
                                       email: email,
                                       passwordConfirmation:
                                           passwordConfirmation,
+                                      avatarPath: avatarPath,
                                     ),
                           ),
                         ],

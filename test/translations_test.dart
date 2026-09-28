@@ -20,6 +20,7 @@ const List<String> errorMessageKeys = [
   'favourite_failed',
   'notifications_failed',
   'profile_failed',
+  'profile_update_failed',
   'explore_failed',
   'search_failed',
   'product_failed',

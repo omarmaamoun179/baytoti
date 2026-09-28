@@ -94,6 +94,7 @@ void main() {
 
   test('the account screens live under the profile tab', () {
     for (final segment in [
+      AppRoutes.editProfileSegment,
       AppRoutes.orderSegment,
       AppRoutes.favouritesSegment,
       AppRoutes.addressesSegment,

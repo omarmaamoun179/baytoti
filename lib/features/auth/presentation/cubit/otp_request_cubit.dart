@@ -73,6 +73,7 @@ class OtpRequestCubit extends BaseCubit<OtpRequestState> {
     String? fullName,
     String? email,
     String? passwordConfirmation,
+    String? avatarPath,
   }) async {
     if (state.isSubmitting) return;
     emit(state.copyWith(status: OtpRequestStatus.submitting));
@@ -84,6 +85,7 @@ class OtpRequestCubit extends BaseCubit<OtpRequestState> {
             phone: phone,
             password: password,
             passwordConfirmation: passwordConfirmation ?? '',
+            avatarPath: avatarPath,
           ))
         : await _login(LoginParams(phone: phone, password: password));
 

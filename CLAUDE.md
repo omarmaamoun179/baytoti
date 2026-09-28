@@ -89,7 +89,8 @@ today's live public endpoints: `$F test test/live_public_probe.dart`.
 All screens run on the live API. Known gaps and deliberate departures:
 
 - **Nothing behind a login has been exercised against the real server.**
-  Cart, checkout, orders, wishlist, notifications, `/auth/me`, location
+  Cart, checkout, orders, wishlist, notifications, `/auth/me`, the profile
+  update, location
   context and the success answers of register/login/verify-otp follow
   `../cloack` or the guide, not a captured Betouti response.
 - **Sign-in and a browsing location are required before any tab.** Betouti's
@@ -152,7 +153,8 @@ All screens run on the live API. Known gaps and deliberate departures:
   (`top_rated` is a 422) and `per_page` ≤ 100.
 - **Notifications** carry only `entity`/`entity_id`, so product and store
   notifications can't open their page (routes need a slug); orders do.
-- **Profile rows** open their own screens under the profile tab — My orders
+- **Profile rows** open their own screens under the profile tab — Edit
+  profile (`/profile/edit`), My orders
   (`/profile/orders`), Favourites (`/profile/favourites`, the wishlist rows'
   products), Addresses (`/profile/addresses`), Notifications. The design had
   them open stand-ins. "Support" is hidden until there is a destination (no
@@ -169,8 +171,36 @@ All screens run on the live API. Known gaps and deliberate departures:
 - **One client-side price calculation**, a preview: the product bar's line
   total (price × quantity). The cart falls back to summing lines only when
   the server omits its summary.
-- **`AuthCubit.updateCustomer` is in memory only**; `PATCH /auth/profile` is
-  not wired (no edit screen).
+- **Edit profile** (`EditProfilePage`, `features/profile`) changes the name,
+  the email and the photo through `PATCH auth/profile`. It never sends
+  `phone`: on `../cloack`'s engine that answers a 422 ("The phone field is
+  prohibited"), because the number is the OTP-verified sign-in identity. The
+  email is optional in the form and goes out as shown, so a blank one is
+  sent as `""`, which the server reads as clearing it. Without a new photo
+  the body is JSON on a `PATCH`; with one it is `multipart/form-data` with
+  the file under `avatar`, sent as a `POST` carrying `_method=PATCH` because
+  PHP parses a multipart body only on POST (`core/network/multipart_body.dart`,
+  as `../baytoti_vendor` does). The `avatar` key comes from the user, not a
+  probe: `../cloack`'s endpoint took name and email only, so an ignored photo
+  is the first thing to check on the real server. The success answer is
+  uncaptured; one that carries no account is followed by `GET auth/me`.
+- **The saved account is in memory only**: the edit page hands it to
+  `AuthCubit.updateCustomer`, and `ProfilePage` shows `AuthCubit`'s customer
+  before its own `auth/me` read, so the change shows at once. The copy cached
+  for session restore is not rewritten; the profile page re-reads `auth/me`
+  whenever it opens.
+- **Photos** are picked by `pickGalleryPhoto` (`core/utils/photo_picker.dart`,
+  `image_picker`), a platform call with no repository in front of it, so its
+  `PlatformException` is caught there in presentation and becomes a toast;
+  choosing nothing is `null`, not an error. No permission is requested: on
+  Android the system Photo Picker (`useAndroidPhotoPicker`) hands over only
+  the chosen photo, so no storage permission is declared; on iOS the picker
+  runs outside the app and, without `requestFullMetadata`, never asks for
+  the library. `NSPhotoLibraryUsageDescription` is in `Info.plist` only
+  because the App Store requires it. Photos are scaled on the device to
+  1024px at quality 85, since the server's size limit is unknown.
+  `EditProfileForm` and `AuthForm` (sign-up only, optional) take the picker
+  as `onPickPhoto` so tests can stand in for it.
 - The auth header has a back button the design omits.
 
 ## The API contract, as core reads it
@@ -215,7 +245,9 @@ whose models and `test/live_*_probe.dart` document the authenticated shapes.
 - **Auth** is password-based with a phone check on top, which departs from the
   design's phone-only screens (the user chose this): signup `register {name,
   email, phone, password, password_confirmation}` (answers the user, token
-  `null`) → `request-otp {phone}` → `verify-otp {phone, otp}` (issues the
+  `null`; with the optional sign-up photo the same keys go out as a
+  multipart `POST` with the file under `avatar`, a key the user asked for
+  and no probe has confirmed) → `request-otp {phone}` → `verify-otp {phone, otp}` (issues the
   token). Login `login {login, password}`: a verified account with a token
   signs in with no code; an unverified one keeps its token pending and goes
   through `request-otp`/`verify-otp`. `AuthOutcome` (`SignedIn` /
@@ -355,6 +387,8 @@ page as a `_buildX` method. **Provider placement:** `XPage` creates the
   (`obscureText` for passwords), `PhoneTextFormField` (`intl_phone_number_input`,
   Kuwait and Egypt), `EmptyState`, `LoadingView`/`ErrorView`, `NetworkPhoto`
   (an empty image list shows the design's neutral placeholder),
+  `AvatarPhoto` (round; a URL, a picked file or a person icon) and
+  `AvatarPicker` (it with a "+" badge and a label to tap),
   `PagedScrollListener`, `showAppToast`, `showConfirmSheet`, brand marks.
 
 **Cubits** extend `BaseCubit`. A state's `copyWith` **clears**

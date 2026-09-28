@@ -4,6 +4,7 @@ import '../../../../core/domain/failure.dart';
 import '../../../../core/network/api_endpoints.dart';
 import '../../../../core/network/api_response.dart';
 import '../../../../core/network/guarded_request.dart';
+import '../../../../core/network/multipart_body.dart';
 import '../../../../core/services/network_service.dart';
 import '../../../../core/utils/phone.dart';
 import '../../domain/entities/otp_challenge.dart';
@@ -35,16 +36,23 @@ class AuthRemoteDataSource implements AuthDataSource {
       guardedRequest(
         'AuthRemoteDataSource.register',
         () async {
+          final body = {
+            'name': params.name.trim(),
+            'email': params.email.trim(),
+            'phone': wirePhone(params.phone),
+            'password': params.password,
+            'password_confirmation': params.passwordConfirmation,
+          };
+          final avatar = params.avatarPath;
           final response = await _network.post(
             ApiEndPoint.register,
             skipAuthRefresh: true,
-            data: {
-              'name': params.name.trim(),
-              'email': params.email.trim(),
-              'phone': wirePhone(params.phone),
-              'password': params.password,
-              'password_confirmation': params.passwordConfirmation,
-            },
+            data: avatar == null
+                ? body
+                : await multipartBodyFrom({
+                    ...body,
+                    'avatar': FileUpload(avatar),
+                  }),
           );
           return AuthOutcomeModel.readAccount(checkedResponse(response).json);
         },
