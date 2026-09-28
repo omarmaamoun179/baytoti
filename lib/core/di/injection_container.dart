@@ -207,7 +207,9 @@ void _registerHomeFeature() {
     () => HomeRepositoryImpl(sl<HomeDataSource>()),
   );
   sl.registerLazySingleton(() => GetHomeUseCase(sl<HomeRepository>()));
+  sl.registerLazySingleton(() => GetStoresUseCase(sl<HomeRepository>()));
   sl.registerFactory(() => HomeCubit(sl()));
+  sl.registerFactory(() => StoresCubit(sl()));
 }
 
 void _registerNotificationsFeature() {

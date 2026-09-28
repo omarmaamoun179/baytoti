@@ -12,4 +12,8 @@ class HomeRepositoryImpl implements HomeRepository {
 
   @override
   Future<Either<Failure, HomeFeed>> getHome() => _dataSource.getHome();
+
+  @override
+  Future<Either<Failure, List<TrustedStore>>> getStores() =>
+      _dataSource.getStores();
 }

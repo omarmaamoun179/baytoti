@@ -21,6 +21,8 @@ extension AppNavigation on BuildContext {
   Future<void> openFamily(String slug) =>
       pushInTab(AppRoutes.familySegment, slug);
 
+  Future<void> openFamilies() => pushInTab(AppRoutes.familySegment);
+
   Future<void> openOrder(String orderId) =>
       pushInTab(AppRoutes.orderSegment, orderId);
 

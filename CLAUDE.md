@@ -133,6 +133,16 @@ All screens run on the live API. Known gaps and deliberate departures:
   picker, so cash on delivery is fixed in `PlaceOrderRequest.toJson`.
 - **Add to cart** sends `{product_id, quantity}`. `../cloack` also sends
   `product_color_id`/`product_variant_id`; the food fork is assumed not to.
+- **All stores**: the trusted-stores section on Home has a "Show all" text
+  button beside its title (`HomeSection.actionLabel`/`onAction`) that pushes
+  `/home/families`
+  (`StoresPage`, `GET /stores`, captured in `test/api_samples/betouti/
+  stores.json`). Betouti answers it as a bare `data` list with no
+  `links`/`meta`, so it is read as one page, not paged; items carry `logo` and
+  `banner` (no `_url`) and no `is_trusted`, so the card shows no verified
+  badge and falls back to the description. It lives in the `home` feature
+  because it reuses `TrustedStore` and `TrustedStoreCard`; like Home it
+  reloads when the browsing location moves.
 - **Removed, no backend**: coupons, order rating, following a family,
   search suggestions, device registration, the exhibition banner and its QR.
 - **Explore** has no endpoint: tabs are New (`sort=newest`), Featured

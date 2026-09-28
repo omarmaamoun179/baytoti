@@ -109,6 +109,8 @@ class _HomeView extends StatelessWidget {
       if (feed.trustedStores.isNotEmpty)
         HomeSection(
           title: 'home_trusted_stores'.tr(),
+          actionLabel: 'home_show_all'.tr(),
+          onAction: context.openFamilies,
           child: TrustedStoreRail(
             stores: feed.trustedStores,
             onTap: (store) => context.openFamily(store.family.slug),

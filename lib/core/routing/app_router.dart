@@ -15,6 +15,7 @@ import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/family/presentation/pages/family_page.dart';
 import '../../features/favourites/presentation/pages/favourites_page.dart';
 import '../../features/home/presentation/pages/home_page.dart';
+import '../../features/home/presentation/pages/stores_page.dart';
 import '../../features/location/presentation/pages/location_page.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/orders/presentation/pages/order_page.dart';
@@ -97,6 +98,10 @@ List<RouteBase> _details({bool checkout = false}) => [
       GoRoute(
         path: '${AppRoutes.productSegment}/:id',
         builder: (context, state) => ProductPage(productId: _id(state)),
+      ),
+      GoRoute(
+        path: AppRoutes.familySegment,
+        builder: (context, state) => const StoresPage(),
       ),
       GoRoute(
         path: '${AppRoutes.familySegment}/:id',

@@ -14,6 +14,7 @@ const List<String> errorMessageKeys = [
   'auth_failed',
   'otp_failed',
   'home_failed',
+  'stores_failed',
   'cart_failed',
   'cart_update_failed',
   'favourite_failed',
