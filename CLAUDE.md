@@ -114,6 +114,15 @@ All screens run on the live API. Known gaps and deliberate departures:
   the full list is `/profile/orders` (`OrdersPage`, paged `GET /orders`).
   `OrderPage.latest` (the newest order) is only a fallback when checkout's
   answer names no order.
+- **Cancelling an order**: `OrderPage` offers "Cancel order" (behind a confirm
+  sheet) while the status is `pending` or `confirmed`, i.e. until the family
+  starts preparing it (`OrderStatus.isCancellable`); the server stays the
+  authority and its
+  refusal reaches a toast. It is `PATCH orders/{id}/cancel` with no body
+  (probed 2026-09-28: PATCH answers a guest 401, POST a 405). Its success
+  answer is uncaptured, so an answer without `order_number` is followed by
+  `GET orders/{id}`, as `../cloack` does. `OrdersPage` re-reads its first page
+  whenever an opened order is popped, so a cancelled status shows in the list.
 - **Checkout** posts `{address_id, payment_method: cash_on_delivery, notes?}`
   to `orders/checkout`. `payment_method` is required (a 422 without it, seen
   2026-09-28); the backend also takes `card`, but the app has no payment

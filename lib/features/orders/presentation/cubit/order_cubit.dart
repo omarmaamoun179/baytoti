@@ -9,10 +9,12 @@ class OrderCubit extends BaseCubit<OrderState> {
 
   final GetOrdersUseCase _getOrders;
   final GetOrderUseCase _getOrder;
+  final CancelOrderUseCase _cancelOrder;
 
   String? _requestedId;
 
-  OrderCubit(this._getOrders, this._getOrder) : super(const OrderState());
+  OrderCubit(this._getOrders, this._getOrder, this._cancelOrder)
+      : super(const OrderState());
 
   Future<void> load(String orderId) async {
     _requestedId = orderId;
@@ -45,6 +47,25 @@ class OrderCubit extends BaseCubit<OrderState> {
 
     final requested = _requestedId;
     if (requested != null) await load(requested);
+  }
+
+  Future<void> cancel() async {
+    final order = state.order;
+    if (order == null || !state.canCancel || state.isCancelling) return;
+    emit(state.copyWith(isCancelling: true));
+
+    final result = await _cancelOrder(order.id);
+
+    result.fold(
+      (failure) => emit(state.copyWith(
+        isCancelling: false,
+        errorMessage: failure.message,
+      )),
+      (cancelled) => emit(state.copyWith(
+        isCancelling: false,
+        order: cancelled,
+      )),
+    );
   }
 
   Future<void> _loadOrder(String orderId) async {

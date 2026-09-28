@@ -94,7 +94,7 @@ class _OrdersView extends StatelessWidget {
                 itemBuilder: (context, index) => OrderSummaryTile(
                   key: ValueKey(orders[index].id),
                   order: orders[index],
-                  onTap: () => context.openOrder(orders[index].id),
+                  onTap: () => _open(context, cubit, orders[index].id),
                 ),
               ),
             if (state.isLoadingMore)
@@ -106,5 +106,14 @@ class _OrdersView extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _open(
+    BuildContext context,
+    OrdersCubit cubit,
+    String orderId,
+  ) async {
+    await context.openOrder(orderId);
+    if (!cubit.isClosed) await cubit.load();
   }
 }

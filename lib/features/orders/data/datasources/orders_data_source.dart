@@ -15,6 +15,8 @@ abstract class OrdersDataSource {
   Future<Either<Failure, Paged<OrderSummary>>> getOrders(OrdersQuery query);
 
   Future<Either<Failure, OrderDetailModel>> getOrder(String id);
+
+  Future<Either<Failure, OrderDetailModel>> cancelOrder(String id);
 }
 
 class OrdersRemoteDataSource implements OrdersDataSource {
@@ -45,6 +47,23 @@ class OrdersRemoteDataSource implements OrdersDataSource {
           return OrderDetailModel.fromResponse(checkedResponse(response));
         },
         fallbackMessage: 'order_failed',
+        messageForStatus: _orderMissing,
+      );
+
+  @override
+  Future<Either<Failure, OrderDetailModel>> cancelOrder(String id) =>
+      guardedRequest(
+        'OrdersRemoteDataSource.cancelOrder',
+        () async {
+          final answer =
+              checkedResponse(await _network.patch(ApiEndPoint.cancelOrder(id)));
+          if (OrderDetailModel.carriesOrder(answer)) {
+            return OrderDetailModel.fromResponse(answer);
+          }
+          final response = await _network.get(ApiEndPoint.order(id));
+          return OrderDetailModel.fromResponse(checkedResponse(response));
+        },
+        fallbackMessage: 'order_cancel_failed',
         messageForStatus: _orderMissing,
       );
 }

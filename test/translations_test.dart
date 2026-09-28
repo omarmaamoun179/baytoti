@@ -29,6 +29,7 @@ const List<String> errorMessageKeys = [
   'order_place_failed',
   'order_failed',
   'order_not_found',
+  'order_cancel_failed',
   'location_failed',
   'addresses_failed',
   'address_not_found',

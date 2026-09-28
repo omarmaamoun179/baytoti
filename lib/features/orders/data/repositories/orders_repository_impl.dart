@@ -18,4 +18,8 @@ class OrdersRepositoryImpl implements OrdersRepository {
   @override
   Future<Either<Failure, OrderDetail>> getOrder(String id) =>
       _dataSource.getOrder(id);
+
+  @override
+  Future<Either<Failure, OrderDetail>> cancelOrder(String id) =>
+      _dataSource.cancelOrder(id);
 }

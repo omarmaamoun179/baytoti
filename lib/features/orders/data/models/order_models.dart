@@ -145,12 +145,18 @@ class OrderDetailModel extends OrderDetail {
       );
 
   static OrderDetailModel fromResponse(ApiResponse response) {
-    final data = response.json;
-    final order =
-        OrderDetailModel.fromJson(jsonMapOrNull(data['order']) ?? data);
+    final order = OrderDetailModel.fromJson(_orderMap(response));
     if (order.id.isEmpty) {
       throw const RequestException('order_not_found', statusCode: 404);
     }
     return order;
+  }
+
+  static bool carriesOrder(ApiResponse response) =>
+      _orderMap(response).containsKey('order_number');
+
+  static Map<String, dynamic> _orderMap(ApiResponse response) {
+    final data = response.json;
+    return jsonMapOrNull(data['order']) ?? data;
   }
 }

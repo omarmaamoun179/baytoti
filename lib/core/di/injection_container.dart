@@ -347,8 +347,9 @@ void _registerOrdersFeature() {
 
   sl.registerLazySingleton(() => GetOrdersUseCase(sl<OrdersRepository>()));
   sl.registerLazySingleton(() => GetOrderUseCase(sl<OrdersRepository>()));
+  sl.registerLazySingleton(() => CancelOrderUseCase(sl<OrdersRepository>()));
 
-  sl.registerFactory(() => OrderCubit(sl(), sl()));
+  sl.registerFactory(() => OrderCubit(sl(), sl(), sl()));
   sl.registerFactory(() => OrdersCubit(sl()));
 }
 

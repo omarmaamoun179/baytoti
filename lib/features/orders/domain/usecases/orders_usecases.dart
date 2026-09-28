@@ -26,3 +26,14 @@ class GetOrderUseCase implements UseCase<Either<Failure, OrderDetail>, String> {
   Future<Either<Failure, OrderDetail>> call(String orderId) =>
       _repository.getOrder(orderId);
 }
+
+class CancelOrderUseCase
+    implements UseCase<Either<Failure, OrderDetail>, String> {
+  final OrdersRepository _repository;
+
+  CancelOrderUseCase(this._repository);
+
+  @override
+  Future<Either<Failure, OrderDetail>> call(String orderId) =>
+      _repository.cancelOrder(orderId);
+}

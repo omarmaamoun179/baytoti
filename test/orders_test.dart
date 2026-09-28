@@ -65,8 +65,23 @@ Failure _failureOf(Either<Failure, Object?> result) =>
 
 OrderCubit _cubitOver(FakeNetwork network) {
   final repository = OrdersRepositoryImpl(OrdersRemoteDataSource(network));
-  return OrderCubit(GetOrdersUseCase(repository), GetOrderUseCase(repository));
+  return OrderCubit(
+    GetOrdersUseCase(repository),
+    GetOrderUseCase(repository),
+    CancelOrderUseCase(repository),
+  );
 }
+
+Map<String, dynamic> _orderBody(String status) => {
+      'success': true,
+      'data': {'id': 12, 'order_number': 'ORD-2026-1258', 'status': status},
+    };
+
+const Map<String, dynamic> _cancelRefused = {
+  'success': false,
+  'message': 'لا يمكن إلغاء الطلب بعد تأكيده.',
+  'data': '',
+};
 
 Widget _app(Widget child) => ScreenUtilScope(
       child: Builder(
@@ -141,6 +156,16 @@ void main() {
       expect(OrderStatus.fromWire(' Processing '), OrderStatus.processing);
       expect(OrderStatus.fromWire('out_for_delivery'), isNull);
       expect(OrderStatus.fromWire(null), isNull);
+    });
+
+    test('an order can be cancelled until the family starts preparing it',
+        () {
+      expect(
+        OrderStatus.values.where((status) => status.isCancellable),
+        [OrderStatus.pending, OrderStatus.confirmed],
+      );
+      expect(OrderState(order: _detail(null)).canCancel, isFalse);
+      expect(const OrderState().canCancel, isFalse);
     });
 
     test('the list pages by meta', () async {
@@ -298,6 +323,49 @@ void main() {
       expect(_failureOf(await source.getOrder('12')).message, 'server_error');
     });
 
+    test('a cancel is a PATCH that reads the order it answers', () async {
+      network.reply(
+        'PATCH',
+        ApiEndPoint.cancelOrder('12'),
+        body: _orderBody('cancelled'),
+      );
+
+      final order = _valueOf(await source.cancelOrder('12'));
+
+      expect(order.status, OrderStatus.cancelled);
+      expect(network.calls.map((c) => '${c.method} ${c.url}'), [
+        'PATCH ${ApiEndPoint.cancelOrder('12')}',
+      ]);
+    });
+
+    test('a cancel that answers no order reads it back', () async {
+      network
+        ..reply(
+          'PATCH',
+          ApiEndPoint.cancelOrder('12'),
+          body: const {'success': true, 'message': 'cancelled', 'data': null},
+        )
+        ..reply('GET', ApiEndPoint.order('12'), body: _orderBody('cancelled'));
+
+      final order = _valueOf(await source.cancelOrder('12'));
+
+      expect(order.status, OrderStatus.cancelled);
+      expect(network.calls.map((c) => c.method), ['PATCH', 'GET']);
+    });
+
+    test('a refused cancel carries the server reason', () async {
+      network.reply(
+        'PATCH',
+        ApiEndPoint.cancelOrder('12'),
+        status: 422,
+        body: _cancelRefused,
+      );
+
+      final failure = _failureOf(await source.cancelOrder('12'));
+
+      expect(failure.message, _cancelRefused['message']);
+    });
+
     test('offline is a network failure', () async {
       final offline = OrdersRemoteDataSource(_OfflineNetwork());
 
@@ -384,6 +452,58 @@ void main() {
       expect(cubit.state.status, OrderViewStatus.loaded);
       expect(cubit.state.order?.id, '12');
       expect(cubit.state.errorMessage, 'Unauthenticated.');
+    });
+
+    test('cancelling a pending order shows it cancelled', () async {
+      network
+        ..reply('GET', ApiEndPoint.order('12'), body: _orderBody('pending'))
+        ..reply(
+          'PATCH',
+          ApiEndPoint.cancelOrder('12'),
+          body: _orderBody('cancelled'),
+        );
+      final cubit = _cubitOver(network);
+      addTearDown(cubit.close);
+      await cubit.load('12');
+      expect(cubit.state.canCancel, isTrue);
+
+      final cancelling = cubit.cancel();
+      expect(cubit.state.isCancelling, isTrue);
+      await cancelling;
+
+      expect(cubit.state.order?.status, OrderStatus.cancelled);
+      expect(cubit.state.canCancel, isFalse);
+      expect(cubit.state.isCancelling, isFalse);
+    });
+
+    test('a refused cancel keeps the order and says why', () async {
+      network
+        ..reply('GET', ApiEndPoint.order('12'), body: _orderBody('pending'))
+        ..reply(
+          'PATCH',
+          ApiEndPoint.cancelOrder('12'),
+          status: 422,
+          body: _cancelRefused,
+        );
+      final cubit = _cubitOver(network);
+      addTearDown(cubit.close);
+      await cubit.load('12');
+
+      await cubit.cancel();
+
+      expect(cubit.state.order?.status, OrderStatus.pending);
+      expect(cubit.state.isCancelling, isFalse);
+      expect(cubit.state.errorMessage, _cancelRefused['message']);
+    });
+
+    test('an order already being prepared is never sent a cancel', () async {
+      final cubit = _cubitOver(network);
+      addTearDown(cubit.close);
+      await cubit.load('12');
+
+      await cubit.cancel();
+
+      expect(network.calls.where((c) => c.method == 'PATCH'), isEmpty);
     });
   });
 
@@ -474,6 +594,43 @@ void main() {
 
       expect(find.text('ORD-2026-1258'), findsOneWidget);
       expect(find.text('مجبوس دجاج'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an order already being prepared has no cancel button',
+        (tester) async {
+      await pumpOrderPage(tester, '12');
+
+      expect(find.text('ORD-2026-1258'), findsOneWidget);
+      expect(find.text('Cancel order'), findsNothing);
+    });
+
+    testWidgets('a pending order is cancelled once the customer confirms',
+        (tester) async {
+      network
+        ..reply('GET', ApiEndPoint.order('12'), body: _orderBody('pending'))
+        ..reply(
+          'PATCH',
+          ApiEndPoint.cancelOrder('12'),
+          body: _orderBody('cancelled'),
+        );
+      await pumpOrderPage(tester, '12');
+
+      await tester.ensureVisible(find.text('Cancel order'));
+      await tester.tap(find.text('Cancel order'));
+      await tester.pumpAndSettle();
+      expect(find.text('Cancel this order?'), findsOneWidget);
+      expect(network.calls.where((c) => c.method == 'PATCH'), isEmpty);
+
+      await tester.tap(find.text('Cancel order').last);
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(network.calls.where((c) => c.method == 'PATCH'), hasLength(1));
+      expect(find.text('Cancel order'), findsNothing);
+      expect(find.text('Cancelled'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 

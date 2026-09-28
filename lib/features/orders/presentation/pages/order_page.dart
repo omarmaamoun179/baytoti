@@ -5,9 +5,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../core/di/di_exports.dart';
 import '../../../../core/theme/app_palette.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/app_header.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/app_toast.dart';
+import '../../../../core/widgets/confirm_sheet.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../cubit/order_cubit.dart';
@@ -103,9 +105,31 @@ class _OrderView extends StatelessWidget {
             items: order.items,
             totalDisplay: order.totals.total.display,
           ),
+          if (state.canCancel) _buildCancel(context, state),
           const SizedBox(height: 12),
         ],
       ),
     );
+  }
+
+  Widget _buildCancel(BuildContext context, OrderState state) => Padding(
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 0),
+        child: AppButton(
+          label: 'order_cancel'.tr(),
+          style: AppButtonStyle.outline,
+          isLoading: state.isCancelling,
+          onPressed: () => _confirmCancel(context),
+        ),
+      );
+
+  Future<void> _confirmCancel(BuildContext context) async {
+    final cubit = context.read<OrderCubit>();
+    final confirmed = await showConfirmSheet(
+      context,
+      title: 'order_cancel_title'.tr(),
+      body: 'order_cancel_body'.tr(),
+      confirmLabel: 'order_cancel'.tr(),
+    );
+    if (confirmed) await cubit.cancel();
   }
 }
