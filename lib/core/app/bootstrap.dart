@@ -7,6 +7,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:requests_inspector/requests_inspector.dart';
 
 import '../common/bloc_observer.dart';
@@ -20,7 +21,9 @@ import 'app.dart';
 Future<void> bootstrap({Future<void> Function()? onReady}) async {
   await runZonedGuarded(
     () async {
-      WidgetsFlutterBinding.ensureInitialized();
+      FlutterNativeSplash.preserve(
+        widgetsBinding: WidgetsFlutterBinding.ensureInitialized(),
+      );
 
       await SystemChrome.setPreferredOrientations([
         DeviceOrientation.portraitUp,

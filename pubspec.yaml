@@ -46,6 +46,7 @@ dependencies:
   url_launcher: ^6.3.1
   device_preview: ^1.3.1
   requests_inspector: ^5.5.1
+  flutter_native_splash: ^2.4.8
 
 dev_dependencies:
   flutter_test:
@@ -79,3 +80,11 @@ flutter:
           weight: 600
         - asset: assets/fonts/IBMPlexSansArabic-Bold.ttf
           weight: 700
+
+flutter_native_splash:
+  color: "#1F5A42"
+  image: assets/native_splash/transparent.png
+  android_12:
+    color: "#1F5A42"
+    image: assets/native_splash/transparent.png
+  web: false

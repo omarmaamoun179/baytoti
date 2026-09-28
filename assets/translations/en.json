@@ -1,5 +1,6 @@
 {
   "app_name": "Baytouti",
+  "splash_tagline": "Browse home-cooked food with ease",
   "unexpected_error": "Something went wrong. Please try again.",
   "connection_failed": "Connection failed. Check your internet connection.",
   "connection_error": "Connection failed. Check your internet connection.",

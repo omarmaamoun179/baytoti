@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../../features/splash/presentation/widgets/splash_overlay.dart';
 import '../di/di_exports.dart';
 import '../routing/app_router.dart';
 import '../theme/app_theme.dart';
@@ -39,7 +40,10 @@ class App extends StatelessWidget {
                 builder: (context, child) =>
                     AnnotatedRegion<SystemUiOverlayStyle>(
                   value: AppTheme.overlayStyle,
-                  child: DevicePreview.appBuilder(context, child),
+                  child: DevicePreview.appBuilder(
+                    context,
+                    SplashOverlay(child: child ?? const SizedBox.shrink()),
+                  ),
                 ),
               ),
             );

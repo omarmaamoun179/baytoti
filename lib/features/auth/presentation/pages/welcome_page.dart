@@ -80,8 +80,10 @@ class WelcomePage extends StatelessWidget {
             child: Text(
               'welcome_sub'.tr(),
               textAlign: TextAlign.center,
-              style: AppStrings.w400(12.5, 1.8)
-                  .c(p.surface.withValues(alpha: .85)),
+              style: AppStrings.w400(
+                12.5,
+                1.8,
+              ).c(p.surface.withValues(alpha: .85)),
             ),
           ),
           const SizedBox(height: 8),
@@ -113,22 +115,16 @@ class WelcomePage extends StatelessWidget {
             fontSize: 14.5,
             onPressed: () => context.go(AppRoutes.home),
           ),
-          const SizedBox(height: 11),
-          AppButton(
-            label: 'welcome_login'.tr(),
-            style: AppButtonStyle.ghost,
-            pill: true,
-            height: 54,
-            fontSize: 14.5,
-            onPressed: () => context.push(AppRoutes.authFor()),
-          ),
+
           const SizedBox(height: 11),
           SizedBox(
             height: 34,
             child: AppTextButton(
               label: 'welcome_signup'.tr(),
-              style: AppStrings.w600(12.5, 1)
-                  .c(p.surface.withValues(alpha: .85)),
+              style: AppStrings.w600(
+                12.5,
+                1,
+              ).c(p.surface.withValues(alpha: .85)),
               onPressed: () => context.push(AppRoutes.authFor(signup: true)),
             ),
           ),

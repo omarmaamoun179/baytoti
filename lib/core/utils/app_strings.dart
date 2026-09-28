@@ -14,6 +14,9 @@ class AppStrings {
   static TextStyle w600(double size, [double? height]) =>
       _s(size, FontWeight.w600, height);
 
+  static TextStyle w500(double size, [double? height]) =>
+      _s(size, FontWeight.w500, height);
+
   static TextStyle w400(double size, [double? height]) =>
       _s(size, FontWeight.w400, height);
 

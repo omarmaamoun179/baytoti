@@ -62,6 +62,40 @@ were deleted on 2026-09-28.
 before `runApp` (the requests inspector's controller is created disabled by
 whoever asks first).
 
+### Splash
+
+Two stages that read as one. **The native splash** (`flutter_native_splash`,
+configured in `pubspec.yaml`) is only the accent colour `#1F5A42`: its
+`image` and `android_12.image` point at `assets/native_splash/transparent.png`
+(not bundled into the app). Without an image the generator writes an opaque
+1×1 black PNG that iOS centres on the launch screen, and Android 12+ shows
+the launcher icon. After editing the config, re-run
+`dart run flutter_native_splash:create`; it rewrites the Android launch
+themes, the iOS `LaunchScreen.storyboard` and `Info.plist`. **The Flutter
+splash** (`features/splash`) is the design's animated splash: the mark draws
+itself (`SplashMarkPainter` traces each stroke by path length, as the CSS
+`stroke-dashoffset` does, and pops the leaf and bubble with the design's
+overshoot curve), the rings pulse, the name, wordmark and tagline fade up,
+and the amber bar fills. The timings are in `SplashTimeline`. It leaves after
+3.5s or on a tap.
+
+`bootstrap` calls `FlutterNativeSplash.preserve`, which defers the first
+frame. `SplashScreen.initState` calls `FlutterNativeSplash.remove`. The
+Material builder's subtree only builds once `Localizations` has loaded the
+translations, so without the hold the app would paint empty frames between
+the green native splash and the green Flutter one. Anything that stops the
+splash from mounting also keeps the native splash on screen.
+
+`SplashOverlay` is not a route. It sits in `MaterialApp.router`'s `builder`
+over the router, so the guard picks the first screen (Welcome for a guest,
+Home or the location picker for a member) and that screen loads behind the
+splash, which then fades out over it. The app beneath is excluded from
+semantics until the splash is gone. The splash is a `Material` because the
+builder is above every `Scaffold`: plain text there takes the yellow
+"no Material" underline. The Arabic name uses
+`TextLeadingDistribution.even` so `height: 1` spreads the leading the way CSS
+`line-height: 1` does; the default puts the ي's dots onto the wordmark.
+
 ## Tests and API samples
 
 Tests never touch the network. `test/support/fake_network.dart` is a
@@ -276,7 +310,8 @@ above sees `Either<Failure, T>` (dartz).
 Features: `catalog` (shared product/family/category/totals entities and
 models, favourites/wishlist, `ProductCard`), `auth`, `location`, `home`,
 `explore`, `search`, `product`, `family`, `cart`, `checkout`, `orders`,
-`notifications`, `profile`, `shell` (the tab bar). A feature may import
+`notifications`, `profile`, `shell` (the tab bar), `splash` (presentation
+only; see "Splash"). A feature may import
 another feature's `domain` entities and `catalog`; it never imports another
 feature's `data` from `presentation`. `ProductCard` reads `CartCubit`
 through the cart's `CartQuantityControl`: a product already in the cart
