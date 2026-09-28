@@ -12,6 +12,7 @@ import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/paged_scroll_listener.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../cart/presentation/cart_actions.dart';
+import '../../../location/domain/entities/location.dart';
 import '../cubit/explore_cubit.dart';
 import '../cubit/explore_state.dart';
 import '../widgets/explore_tab_strip.dart';
@@ -25,7 +26,11 @@ class ExplorePage extends StatelessWidget {
     return BlocProvider(
       key: ValueKey(context.locale.languageCode),
       create: (_) => sl<ExploreCubit>()..load(),
-      child: const _ExploreView(),
+      child: BlocListener<LocationCubit, LocationContext>(
+        listenWhen: (previous, current) => current.movedFrom(previous),
+        listener: (context, _) => context.read<ExploreCubit>().load(),
+        child: const _ExploreView(),
+      ),
     );
   }
 }

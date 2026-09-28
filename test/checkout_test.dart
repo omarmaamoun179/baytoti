@@ -152,20 +152,25 @@ void main() {
   });
 
   group('the checkout request', () {
-    test('carries the address by its number and nothing else', () {
+    test('carries the address by its number and pays cash on delivery', () {
       expect(const PlaceOrderParams(addressId: '2').toJson(), {
         'address_id': 2,
+        'payment_method': 'cash_on_delivery',
       });
     });
 
     test('a note goes trimmed, a blank one not at all', () {
       expect(
         const PlaceOrderParams(addressId: '2', notes: ' no onion ').toJson(),
-        {'address_id': 2, 'notes': 'no onion'},
+        {
+          'address_id': 2,
+          'payment_method': 'cash_on_delivery',
+          'notes': 'no onion',
+        },
       );
       expect(
         const PlaceOrderParams(addressId: '2', notes: '  ').toJson(),
-        {'address_id': 2},
+        {'address_id': 2, 'payment_method': 'cash_on_delivery'},
       );
     });
   });
@@ -224,7 +229,10 @@ void main() {
       await source.placeOrder(const PlaceOrderParams(addressId: '2'));
 
       expect(network.last('POST').url, ApiEndPoint.checkout);
-      expect(network.last('POST').data, {'address_id': 2});
+      expect(network.last('POST').data, {
+        'address_id': 2,
+        'payment_method': 'cash_on_delivery',
+      });
       expect(network.last('POST').headers, isNull);
     });
 
@@ -398,7 +406,10 @@ void main() {
 
       final posts = network.calls.where((c) => c.method == 'POST').toList();
       expect(posts, hasLength(1));
-      expect(posts.single.data, {'address_id': 2});
+      expect(posts.single.data, {
+        'address_id': 2,
+        'payment_method': 'cash_on_delivery',
+      });
       expect(cubit.state.placedOrders?.map((o) => o.id), ['41', '42']);
       expect(cubit.state.isBusy, isTrue);
       expect(cubit.state.canPlace, isFalse);
@@ -599,7 +610,10 @@ void main() {
       );
       await placeOrder(tester);
 
-      expect(network.last('POST').data, {'address_id': 2});
+      expect(network.last('POST').data, {
+        'address_id': 2,
+        'payment_method': 'cash_on_delivery',
+      });
       expect(find.text('order 41'), findsOneWidget);
       expect(cartCubit.state.cart?.isEmpty, isTrue);
       expect(tester.takeException(), isNull);
@@ -633,7 +647,10 @@ void main() {
       expect(find.text('Address 7'), findsOneWidget);
       await placeOrder(tester);
 
-      expect(network.last('POST').data, {'address_id': 7});
+      expect(network.last('POST').data, {
+        'address_id': 7,
+        'payment_method': 'cash_on_delivery',
+      });
       expect(tester.takeException(), isNull);
     });
 

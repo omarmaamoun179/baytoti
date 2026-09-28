@@ -37,6 +37,12 @@ class LocationContext extends Equatable {
 
   bool get isSet => countryId != null && governorateId != null;
 
+  bool movedFrom(LocationContext previous) =>
+      previous.isSet &&
+      isSet &&
+      (countryId != previous.countryId ||
+          governorateId != previous.governorateId);
+
   LocationContext withCode(String? code) => LocationContext(
         countryId: countryId,
         governorateId: governorateId,

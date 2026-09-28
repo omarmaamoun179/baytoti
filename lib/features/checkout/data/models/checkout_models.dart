@@ -49,6 +49,7 @@ extension PlaceOrderRequest on PlaceOrderParams {
 
     return {
       'address_id': int.tryParse(addressId) ?? addressId,
+      'payment_method': 'cash_on_delivery',
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
   }

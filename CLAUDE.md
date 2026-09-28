@@ -114,6 +114,10 @@ All screens run on the live API. Known gaps and deliberate departures:
   the full list is `/profile/orders` (`OrdersPage`, paged `GET /orders`).
   `OrderPage.latest` (the newest order) is only a fallback when checkout's
   answer names no order.
+- **Checkout** posts `{address_id, payment_method: cash_on_delivery, notes?}`
+  to `orders/checkout`. `payment_method` is required (a 422 without it, seen
+  2026-09-28); the backend also takes `card`, but the app has no payment
+  picker, so cash on delivery is fixed in `PlaceOrderRequest.toJson`.
 - **Add to cart** sends `{product_id, quantity}`. `../cloack` also sends
   `product_color_id`/`product_variant_id`; the food fork is assumed not to.
 - **Removed, no backend**: coupons, order rating, following a family,
@@ -129,8 +133,14 @@ All screens run on the live API. Known gaps and deliberate departures:
   (`/profile/orders`), Favourites (`/profile/favourites`, the wishlist rows'
   products), Addresses (`/profile/addresses`), Notifications. The design had
   them open stand-ins. "Support" is hidden until there is a destination (no
-  endpoint, no contact details), and the browsing location is chosen once
-  after sign-in — there is no profile row to change it.
+  endpoint, no contact details).
+- **Changing the browsing location**: the "Delivery area" profile row pushes
+  the root `/location?from=/profile` (the same manual picker shown after
+  sign-in). The backend also accepts `{mode: auto, latitude, longitude}`; the
+  app doesn't use it (no geolocation package). Home, Explore and Search stay
+  mounted in the shell, so each listens to `LocationCubit` and reloads when
+  `LocationContext.movedFrom` the previous one — a switch between two set
+  areas only, so the first context after sign-in doesn't double-load them.
 - **`POST /auth/refresh` does not exist**: a 401 on a call sent with the
   stored token ends the session.
 - **One client-side price calculation**, a preview: the product bar's line

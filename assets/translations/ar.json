@@ -153,6 +153,7 @@
   "notifications_failed": "تعذر تحميل الإشعارات.",
   "profile_my_orders": "طلباتي",
   "profile_addresses": "العناوين",
+  "profile_location": "منطقة التوصيل",
   "profile_notifications": "الإشعارات",
   "profile_language": "اللغة",
   "profile_language_value": "العربية",

@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/section_label.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../cart/presentation/cart_actions.dart';
+import '../../../location/domain/entities/location.dart';
 import '../../domain/entities/home_feed.dart';
 import '../cubit/home_cubit.dart';
 import '../widgets/category_rail.dart';
@@ -30,7 +31,11 @@ class HomePage extends StatelessWidget {
     return BlocProvider(
       key: ValueKey(context.locale.languageCode),
       create: (_) => sl<HomeCubit>()..load(),
-      child: const _HomeView(),
+      child: BlocListener<LocationCubit, LocationContext>(
+        listenWhen: (previous, current) => current.movedFrom(previous),
+        listener: (context, _) => context.read<HomeCubit>().load(),
+        child: const _HomeView(),
+      ),
     );
   }
 }

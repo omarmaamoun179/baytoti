@@ -162,6 +162,16 @@ void main() {
       expect(session.hasLocation, isTrue);
     });
 
+    test('only a switch between two set areas counts as a move', () {
+      const cairo = LocationContext(countryId: '1', governorateId: '1');
+      const giza = LocationContext(countryId: '1', governorateId: '2');
+
+      expect(giza.movedFrom(cairo), isTrue);
+      expect(cairo.withCode('EG').movedFrom(cairo), isFalse);
+      expect(cairo.movedFrom(LocationContext.none), isFalse);
+      expect(LocationContext.none.movedFrom(cairo), isFalse);
+    });
+
     test('a customer with no context is marked as needing one', () async {
       network.replySample(
         'GET',

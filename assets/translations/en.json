@@ -153,6 +153,7 @@
   "notifications_failed": "Notifications could not be loaded.",
   "profile_my_orders": "My orders",
   "profile_addresses": "Addresses",
+  "profile_location": "Delivery area",
   "profile_notifications": "Notifications",
   "profile_language": "Language",
   "profile_language_value": "English",

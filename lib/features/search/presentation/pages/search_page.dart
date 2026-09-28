@@ -13,6 +13,7 @@ import '../../../../core/widgets/paged_scroll_listener.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../cart/presentation/cart_actions.dart';
 import '../../../catalog/domain/entities/product_summary.dart';
+import '../../../location/domain/entities/location.dart';
 import '../cubit/search_cubit.dart';
 import '../cubit/search_state.dart';
 import '../widgets/search_field.dart';
@@ -35,7 +36,11 @@ class SearchPage extends StatelessWidget {
       ),
       create: (_) => sl<SearchCubit>()
         ..load(query: initialQuery, categorySlug: initialCategoryId),
-      child: _SearchView(initialQuery: initialQuery ?? ''),
+      child: BlocListener<LocationCubit, LocationContext>(
+        listenWhen: (previous, current) => current.movedFrom(previous),
+        listener: (context, _) => context.read<SearchCubit>().retry(),
+        child: _SearchView(initialQuery: initialQuery ?? ''),
+      ),
     );
   }
 }

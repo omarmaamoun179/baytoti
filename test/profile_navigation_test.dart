@@ -103,6 +103,13 @@ void main() {
               ),
           ],
         ),
+        GoRoute(
+          path: AppRoutes.location,
+          builder: (_, state) => Text(
+            'at ${state.uri.path} from '
+            '${state.uri.queryParameters[AppRoutes.fromQuery]}',
+          ),
+        ),
       ],
     );
     addTearDown(router.dispose);
@@ -139,12 +146,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Support'), findsNothing);
-    expect(find.text('Delivery area'), findsNothing);
 
     for (final (label, path) in [
       ('My orders', '/profile/orders'),
       ('Favourites', '/profile/favourites'),
       ('Addresses', '/profile/addresses'),
+      ('Delivery area', '/location from /profile'),
       ('Notifications', '/profile/notifications'),
     ]) {
       await tester.tap(find.text(label));

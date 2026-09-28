@@ -101,6 +101,11 @@ class _ProfileView extends StatelessWidget {
           onTap: () => context.pushInTab(AppRoutes.addressesSegment),
         ),
         ProfileRow(
+          label: 'profile_location'.tr(),
+          onTap: () =>
+              context.push(AppRoutes.locationFor(from: context.currentLocation)),
+        ),
+        ProfileRow(
           label: 'profile_notifications'.tr(),
           onTap: () => context.openNotifications(),
         ),
