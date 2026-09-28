@@ -25,6 +25,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/cart_harness.dart';
 import 'support/fake_network.dart';
 
 const String _firstPage = 'cloak/products_page.json';
@@ -339,7 +340,7 @@ void main() {
         price: const Money(fils: 12500),
       );
 
-      await tester.pumpWidget(ScreenUtilScope(
+      await tester.pumpWidget(withGuestCart(ScreenUtilScope(
         child: Builder(
           builder: (_) => MaterialApp(
             theme: AppTheme.light,
@@ -362,7 +363,7 @@ void main() {
             ),
           ),
         ),
-      ));
+      )));
 
       expect(tester.takeException(), isNull);
       expect(find.byType(ProductCard), findsNWidgets(3));

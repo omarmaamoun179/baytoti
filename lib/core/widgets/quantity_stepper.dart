@@ -11,6 +11,7 @@ class QuantityStepper extends StatelessWidget {
   final double buttonWidth;
   final double signSize;
   final double valueSize;
+  final double valueWidth;
 
   const QuantityStepper({
     super.key,
@@ -21,6 +22,7 @@ class QuantityStepper extends StatelessWidget {
     this.buttonWidth = 32,
     this.signSize = 15,
     this.valueSize = 13,
+    this.valueWidth = 34,
   });
 
   const QuantityStepper.large({
@@ -31,7 +33,8 @@ class QuantityStepper extends StatelessWidget {
   })  : height = 48,
         buttonWidth = 38,
         signSize = 17,
-        valueSize = 14;
+        valueSize = 14,
+        valueWidth = 34;
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +67,7 @@ class QuantityStepper extends StatelessWidget {
         children: [
           sign('−', onDecrement),
           Container(
-            width: 34,
+            width: valueWidth,
             alignment: Alignment.center,
             decoration: BoxDecoration(
               border: Border.symmetric(vertical: p.hairline),

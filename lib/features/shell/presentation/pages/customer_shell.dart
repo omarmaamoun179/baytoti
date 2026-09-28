@@ -16,10 +16,8 @@ class CustomerShell extends StatelessWidget {
     this.showNav = true,
   });
 
-  void _onTap(int index) => navigationShell.goBranch(
-        index,
-        initialLocation: index == navigationShell.currentIndex,
-      );
+  void _onTap(int index) =>
+      navigationShell.goBranch(index, initialLocation: true);
 
   @override
   Widget build(BuildContext context) {

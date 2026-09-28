@@ -9,6 +9,7 @@ import '../../features/auth/presentation/pages/auth_page.dart';
 import '../../features/auth/presentation/pages/otp_page.dart';
 import '../../features/auth/presentation/pages/welcome_page.dart';
 import '../../features/cart/presentation/pages/cart_page.dart';
+import '../../features/catalog/domain/entities/image_ref.dart';
 import '../../features/checkout/presentation/pages/checkout_page.dart';
 import '../../features/explore/presentation/pages/explore_page.dart';
 import '../../features/family/presentation/pages/family_page.dart';
@@ -103,7 +104,13 @@ List<RouteBase> _details({bool checkout = false}) => [
       ),
       GoRoute(
         path: '${AppRoutes.orderSegment}/:id',
-        builder: (context, state) => OrderPage(orderId: _id(state)),
+        builder: (context, state) => OrderPage(
+          orderId: _id(state),
+          productPhotos: switch (state.extra) {
+            final Map<String, ImageRef> photos => photos,
+            _ => const {},
+          },
+        ),
       ),
       GoRoute(
         path: AppRoutes.notificationsSegment,

@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../domain/entities/cart.dart';
+import '../cart_actions.dart';
 import '../cubit/cart_cubit.dart';
 import '../cubit/cart_state.dart';
 import '../widgets/cart_line_tile.dart';
@@ -91,16 +92,14 @@ class _CartPageState extends State<CartPage> {
   }
 
   List<Widget> _buildLines(BuildContext context, CartState state, Cart cart) {
-    final cubit = context.read<CartCubit>();
-
     return [
       for (final item in cart.items)
         CartLineTile(
           key: ValueKey(item.id),
           item: item,
           busy: state.isBusy(item.id),
-          onQuantity: (quantity) => cubit.setQuantity(item, quantity),
-          onRemove: () => cubit.remove(item),
+          onQuantity: (quantity) => setCartQuantity(context, item, quantity),
+          onRemove: () => removeFromCart(context, item),
         ),
       Padding(
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 4),

@@ -113,7 +113,11 @@ All screens run on the live API. Known gaps and deliberate departures:
 - **Orders**: checkout may create one order per store and opens the first;
   the full list is `/profile/orders` (`OrdersPage`, paged `GET /orders`).
   `OrderPage.latest` (the newest order) is only a fallback when checkout's
-  answer names no order.
+  answer names no order. Order lines may come without an image: checkout
+  passes the cart lines' photos (`{productId: ImageRef}`) as the route's
+  `extra`, and `OrderItemsSection` uses one when a line has none. An order
+  opened from the list or a notification gets no photos, so those lines keep
+  the placeholder.
 - **Cancelling an order**: `OrderPage` offers "Cancel order" (behind a confirm
   sheet) while the status is `pending` or `confirmed`, i.e. until the family
   starts preparing it (`OrderStatus.isCancellable`); the server stays the
@@ -232,7 +236,11 @@ models, favourites/wishlist, `ProductCard`), `auth`, `location`, `home`,
 `explore`, `search`, `product`, `family`, `cart`, `checkout`, `orders`,
 `notifications`, `profile`, `shell` (the tab bar). A feature may import
 another feature's `domain` entities and `catalog`; it never imports another
-feature's `data` from `presentation`.
+feature's `data` from `presentation`. `ProductCard` reads `CartCubit`
+through the cart's `CartQuantityControl`: a product already in the cart
+shows a compact stepper in place of the add button (minus at one removes
+the line), so anything that pumps a card needs a `CartCubit`
+(`test/support/cart_harness.dart`).
 
 ### Dependency injection
 
@@ -268,8 +276,11 @@ never in the repository. The error type is `Failure`
   flows fold once and guard side effects (see `AuthRepositoryImpl.verifyOtp`).
 - **Cubit**: never catches; folds into an emitted state; both branches emit.
   The one exception to "`Future<void>` + emit": an action whose caller must
-  react to *its own* outcome — `CartCubit.add` — returns `Future<Failure?>`, because every page under the shell stays mounted
-  and a state listener would fire on all of them.
+  react to *its own* outcome — `CartCubit.add`, `setQuantity` and `remove` —
+  returns `Future<Failure?>` and leaves `errorMessage` alone, because every
+  page under the shell stays mounted and a state listener would fire on all
+  of them. Call them through `cart_actions.dart` (`addToCart`,
+  `setCartQuantity`, `removeFromCart`), which toast the failure.
 
 `mapExceptionToFailure` is where a message becomes displayable: above it,
 `Failure.message` is always safe to show. Any sentinel used as a message
@@ -286,8 +297,10 @@ tabs in a `StatefulShellRoute`: `/home`, `/explore`, `/search`, `/cart`,
 so the tab bar stays, as the design draws it, and back stays inside the tab.
 Open them with the `AppNavigation` extension (`context.openProduct(slug)`,
 `openFamily`, `openOrder`, `openNotifications`, `pushInTab(segment)`), which
-prefixes the current tab. The shell hides the tab bar on product pages, the
-one screen the design draws without it. `/welcome`, `/auth` and `/otp` are
+prefixes the current tab. Tapping a tab always opens its root page
+(`goBranch(index, initialLocation: true)`), never the detail screen left open
+in it. The shell hides the tab bar on product pages, the one screen the
+design draws without it. `/welcome`, `/auth` and `/otp` are
 root routes for guests; `/location` is a root route for members.
 
 The guard reads `SessionNotifier`. **Everything except `/welcome`, `/auth`

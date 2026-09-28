@@ -159,7 +159,8 @@ void main() {
     expect(cubit.state.cart!.isEmpty, isTrue);
   });
 
-  test('a failed removal keeps the cart and reports why', () async {
+  test('a failed removal keeps the cart and returns why to the caller',
+      () async {
     await signIn();
     final before = cubit.state.cart;
     network.replySample(
@@ -169,11 +170,37 @@ void main() {
       status: 401,
     );
 
-    await cubit.remove(before!.items.last);
+    final failure = await cubit.remove(before!.items.last);
 
+    expect(failure?.message, 'Unauthenticated.');
     expect(cubit.state.cart, before);
-    expect(cubit.state.errorMessage, 'Unauthenticated.');
+    expect(cubit.state.errorMessage, isNull);
     expect(cubit.state.busyItemIds, isEmpty);
+  });
+
+  test('a refused quantity change is returned and keeps the line', () async {
+    await signIn();
+    final line = cubit.state.cart!.items.first;
+    network.replySample(
+      'PATCH',
+      ApiEndPoint.cartItem(line.id),
+      'cart/cart_quantity_422.cloak_shape.json',
+      status: 422,
+    );
+
+    final failure = await cubit.setQuantity(line, line.quantity + 1);
+
+    expect(failure, isA<ValidationFailure>());
+    expect(cubit.state.cart!.items.first, line);
+    expect(cubit.state.busyItemIds, isEmpty);
+  });
+
+  test('a product in the cart is found by its product id', () async {
+    await signIn();
+    final line = cubit.state.cart!.items.first;
+
+    expect(cubit.state.cart!.itemFor(line.productId), line);
+    expect(cubit.state.cart!.itemFor('no-such-product'), isNull);
   });
 
   test('a session end empties the cart', () async {

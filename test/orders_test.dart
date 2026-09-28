@@ -4,6 +4,8 @@ import 'package:baytoti/core/network/api_endpoints.dart';
 import 'package:baytoti/core/theme/app_theme.dart';
 import 'package:baytoti/core/utils/money.dart';
 import 'package:baytoti/core/utils/screen_util_scope.dart';
+import 'package:baytoti/core/widgets/network_photo.dart';
+import 'package:baytoti/features/catalog/domain/entities/image_ref.dart';
 import 'package:baytoti/features/catalog/domain/entities/order_totals.dart';
 import 'package:baytoti/features/orders/data/datasources/orders_data_source.dart';
 import 'package:baytoti/features/orders/data/models/order_models.dart';
@@ -538,6 +540,39 @@ void main() {
       expect(find.text('× 2'), findsOneWidget);
       expect(find.text(const Money(fils: 72000).display), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a line without a photo shows the one checkout passed',
+        (tester) async {
+      OrderLine line(String id, {ImageRef? image}) => OrderLine(
+            id: id,
+            productId: 'p$id',
+            name: 'Line $id',
+            quantity: 1,
+            unitPrice: const Money(fils: 0),
+            lineTotal: const Money(fils: 0),
+            image: image,
+          );
+
+      await tester.pumpWidget(_app(OrderItemsSection(
+        items: [
+          line('1'),
+          line('2', image: const ImageRef(url: 'https://own/2.jpg')),
+          line('3'),
+        ],
+        totalDisplay: '',
+        productPhotos: const {
+          'p1': ImageRef(url: 'https://cart/1.jpg'),
+          'p2': ImageRef(url: 'https://cart/2.jpg'),
+        },
+      )));
+
+      expect(
+        tester.widgetList<NetworkPhoto>(find.byType(NetworkPhoto)).map(
+              (photo) => photo.url,
+            ),
+        ['https://cart/1.jpg', 'https://own/2.jpg', null],
+      );
     });
 
     testWidgets('a cancelled order draws two steps', (tester) async {

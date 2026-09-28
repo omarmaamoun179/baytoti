@@ -12,6 +12,7 @@ import 'package:baytoti/features/cart/data/repositories/cart_repository_impl.dar
 import 'package:baytoti/features/cart/domain/usecases/cart_usecases.dart';
 import 'package:baytoti/features/cart/presentation/cubit/cart_cubit.dart';
 import 'package:baytoti/features/cart/presentation/cubit/cart_state.dart';
+import 'package:baytoti/features/catalog/domain/entities/image_ref.dart';
 import 'package:baytoti/features/checkout/data/datasources/checkout_data_source.dart';
 import 'package:baytoti/features/checkout/data/models/checkout_models.dart';
 import 'package:baytoti/features/checkout/data/repositories/checkout_repository_impl.dart';
@@ -511,7 +512,10 @@ void main() {
 
     tearDown(() => GetIt.instance.reset());
 
+    late List<Object?> orderExtras;
+
     Future<CartCubit> pumpCheckout(WidgetTester tester) async {
+      orderExtras = [];
       network.replySample(
         'GET',
         ApiEndPoint.cart,
@@ -540,8 +544,10 @@ void main() {
               ),
               GoRoute(
                 path: 'orders/:id',
-                builder: (_, state) =>
-                    Text('order ${state.pathParameters['id']}'),
+                builder: (_, state) {
+                  orderExtras.add(state.extra);
+                  return Text('order ${state.pathParameters['id']}');
+                },
               ),
               GoRoute(
                 path: '${AppRoutes.addressesSegment}/${AppRoutes.newSegment}',
@@ -617,6 +623,22 @@ void main() {
       expect(find.text('order 41'), findsOneWidget);
       expect(cartCubit.state.cart?.isEmpty, isTrue);
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('the order opens with the photos of the lines just bought',
+        (tester) async {
+      await pumpCheckout(tester);
+      network.replySample(
+        'GET',
+        ApiEndPoint.cart,
+        'cart/cart_empty.cloak_shape.json',
+      );
+
+      await placeOrder(tester);
+
+      final photos = orderExtras.last! as Map<String, ImageRef>;
+      expect(photos.keys, ['14']);
+      expect(photos['14']?.url, 'https://images.example.com/maamoul.jpg');
     });
 
     testWidgets('a new customer adds an address and can then order',

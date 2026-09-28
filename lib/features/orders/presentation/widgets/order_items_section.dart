@@ -3,18 +3,20 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
-import '../../../../core/widgets/network_photo.dart';
 import '../../../../core/widgets/section_label.dart';
+import '../../../catalog/domain/entities/image_ref.dart';
 import '../../domain/entities/order.dart';
 
 class OrderItemsSection extends StatelessWidget {
   final List<OrderLine> items;
   final String totalDisplay;
+  final Map<String, ImageRef> productPhotos;
 
   const OrderItemsSection({
     super.key,
     required this.items,
     required this.totalDisplay,
+    this.productPhotos = const {},
   });
 
   @override
@@ -55,11 +57,13 @@ class OrderItemsSection extends StatelessWidget {
       decoration: BoxDecoration(border: Border(bottom: p.hairline)),
       child: Row(
         children: [
-          SizedBox(
-            width: 48,
-            height: 48,
-            child: NetworkPhoto(url: line.image?.url),
-          ),
+          // SizedBox(
+          //   width: 48,
+          //   height: 48,
+          //   child: NetworkPhoto(
+          //     url: (line.image ?? productPhotos[line.productId])?.url,
+          //   ),
+          // ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -75,10 +79,7 @@ class OrderItemsSection extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Text(
-            line.lineTotal.display,
-            style: AppStrings.w800(12, 1).c(p.text),
-          ),
+          Text(line.lineTotal.display, style: AppStrings.w800(12, 1).c(p.text)),
         ],
       ),
     );

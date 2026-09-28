@@ -29,6 +29,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/cart_harness.dart';
 import 'support/fake_network.dart';
 
 const _slug = 'mkhml-6';
@@ -114,14 +115,14 @@ T _value<T>(Either<Failure, T> result) =>
     result.getOrElse(() => fail('expected a value, got $result'));
 
 Future<void> _pump(WidgetTester tester, Widget child) =>
-    tester.pumpWidget(ScreenUtilScope(
+    tester.pumpWidget(withGuestCart(ScreenUtilScope(
       child: Builder(
         builder: (_) => MaterialApp(
           theme: AppTheme.light,
           home: Scaffold(body: SingleChildScrollView(child: child)),
         ),
       ),
-    ));
+    )));
 
 void main() {
   group('FamilyProfileModel reads the real shapes', () {

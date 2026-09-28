@@ -45,8 +45,15 @@ class _CheckoutView extends StatelessWidget {
   ) async {
     final cart = context.read<CartCubit>();
     final orderId = orders.firstOrNull?.id ?? OrderPage.latest;
+    final photos = {
+      for (final item in cart.state.cart?.items ?? const <CartItem>[])
+        item.productId: ?item.image,
+    };
 
-    context.go('${AppRoutes.cart}/${AppRoutes.orderSegment}/$orderId');
+    context.go(
+      '${AppRoutes.cart}/${AppRoutes.orderSegment}/$orderId',
+      extra: photos,
+    );
     await cart.load();
   }
 

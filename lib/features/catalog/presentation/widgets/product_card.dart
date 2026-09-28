@@ -4,6 +4,7 @@ import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
 import '../../../../core/widgets/app_icon.dart';
 import '../../../../core/widgets/network_photo.dart';
+import '../../../cart/presentation/widgets/cart_quantity_control.dart';
 import '../../domain/entities/image_ref.dart';
 import '../../domain/entities/product_summary.dart';
 import 'product_badge_chip.dart';
@@ -83,14 +84,24 @@ class ProductCard extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        product.price.display,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: AppStrings.w800(compact ? 13 : 14, 1).c(p.text),
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Text(
+                          product.price.display,
+                          maxLines: 1,
+                          style:
+                              AppStrings.w800(compact ? 13 : 14, 1).c(p.text),
+                        ),
                       ),
                     ),
-                    AddButton(onTap: onAdd, size: compact ? 28 : 30),
+                    const SizedBox(width: 6),
+                    CartQuantityControl(
+                      productId: product.id,
+                      height: compact ? 28 : 30,
+                      addButton:
+                          AddButton(onTap: onAdd, size: compact ? 28 : 30),
+                    ),
                   ],
                 ),
               ],

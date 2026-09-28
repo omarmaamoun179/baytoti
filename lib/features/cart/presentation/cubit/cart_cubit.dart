@@ -81,22 +81,22 @@ class CartCubit extends BaseCubit<CartState> {
     );
   }
 
-  Future<void> setQuantity(CartItem item, int quantity) async {
+  Future<Failure?> setQuantity(CartItem item, int quantity) async {
     if (quantity < 1 || quantity > item.maxQuantity || state.isBusy(item.id)) {
-      return;
+      return null;
     }
-    await _mutate(
+    return _mutate(
       item.id,
       () => _updateItem(CartQuantityParams(id: item.id, quantity: quantity)),
     );
   }
 
-  Future<void> remove(CartItem item) async {
-    if (state.isBusy(item.id)) return;
-    await _mutate(item.id, () => _removeItem(item.id));
+  Future<Failure?> remove(CartItem item) async {
+    if (state.isBusy(item.id)) return null;
+    return _mutate(item.id, () => _removeItem(item.id));
   }
 
-  Future<void> _mutate(
+  Future<Failure?> _mutate(
     String itemId,
     Future<Either<Failure, Cart>> Function() call,
   ) async {
@@ -105,12 +105,15 @@ class CartCubit extends BaseCubit<CartState> {
     final result = await call();
     final busy = {...state.busyItemIds}..remove(itemId);
 
-    result.fold(
-      (failure) => emit(state.copyWith(
-        busyItemIds: busy,
-        errorMessage: failure.message,
-      )),
-      (cart) => emit(state.copyWith(cart: cart, busyItemIds: busy)),
+    return result.fold(
+      (failure) {
+        emit(state.copyWith(busyItemIds: busy));
+        return failure;
+      },
+      (cart) {
+        emit(state.copyWith(cart: cart, busyItemIds: busy));
+        return null;
+      },
     );
   }
 

@@ -58,6 +58,9 @@ class Cart extends Equatable {
 
   int get itemCount => items.fold(0, (sum, item) => sum + item.quantity);
 
+  CartItem? itemFor(String productId) =>
+      items.where((item) => item.productId == productId).firstOrNull;
+
   @override
   List<Object?> get props => [items, totals];
 }

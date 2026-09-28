@@ -12,6 +12,7 @@ import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/confirm_sheet.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/state_views.dart';
+import '../../../catalog/domain/entities/image_ref.dart';
 import '../cubit/order_cubit.dart';
 import '../cubit/order_state.dart';
 import '../widgets/order_header_card.dart';
@@ -22,21 +23,28 @@ class OrderPage extends StatelessWidget {
   static const String latest = OrderCubit.latest;
 
   final String orderId;
+  final Map<String, ImageRef> productPhotos;
 
-  const OrderPage({super.key, required this.orderId});
+  const OrderPage({
+    super.key,
+    required this.orderId,
+    this.productPhotos = const {},
+  });
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       key: ValueKey('${context.locale.languageCode}/$orderId'),
       create: (_) => sl<OrderCubit>()..load(orderId),
-      child: const _OrderView(),
+      child: _OrderView(productPhotos: productPhotos),
     );
   }
 }
 
 class _OrderView extends StatelessWidget {
-  const _OrderView();
+  final Map<String, ImageRef> productPhotos;
+
+  const _OrderView({required this.productPhotos});
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +112,7 @@ class _OrderView extends StatelessWidget {
           OrderItemsSection(
             items: order.items,
             totalDisplay: order.totals.total.display,
+            productPhotos: productPhotos,
           ),
           if (state.canCancel) _buildCancel(context, state),
           const SizedBox(height: 12),
