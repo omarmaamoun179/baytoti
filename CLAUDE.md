@@ -46,6 +46,17 @@ indented 8.
 **No comments in any file** — not `//`, `///` or `/* */` in Dart, not `#` in
 YAML, tests included. Reasoning worth keeping goes in this file.
 
+### Release identity
+
+The package name and bundle ID are `com.alqudirysolutions.baytouti`, the
+user's choice, following the sibling `com.alqudirysolutions.cloak`; a vendor
+app would be `…baytouti.vendor`. They are permanent once published. They are
+set in `android/app/build.gradle.kts` (`namespace`, `applicationId`), in
+`MainActivity.kt`'s package and folder, and in `PRODUCT_BUNDLE_IDENTIFIER` in
+`ios/Runner.xcodeproj` (team `3L2ESXVMCL`). Android release builds are still
+signed with the debug key; Google Play needs an upload keystore wired into
+`buildTypes.release`.
+
 ### Build-time switches
 
 ```bash

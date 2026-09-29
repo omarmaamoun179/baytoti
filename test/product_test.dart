@@ -75,6 +75,44 @@ class _BrokenNetwork extends FakeNetwork {
       throw error;
 }
 
+class _PagedReviews extends FakeNetwork {
+  final Map<int, List<Map<String, dynamic>>> pages;
+
+  _PagedReviews(this.pages);
+
+  @override
+  Future<Response> get(
+    String url, {
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? headers,
+    bool skipAuthRefresh = false,
+  }) async {
+    calls.add(FakeCall('GET', url, queryParameters, null, headers));
+    final page = queryParameters?['page'] as int? ?? 1;
+    return Response<dynamic>(
+      requestOptions: RequestOptions(path: url),
+      statusCode: 200,
+      data: {
+        'success': true,
+        'data': pages[page] ?? const [],
+        'meta': {
+          'current_page': page,
+          'last_page': pages.length,
+          'per_page': ProductRemoteDataSource.reviewPageSize,
+          'total': pages.length,
+        },
+      },
+    );
+  }
+}
+
+Map<String, dynamic> _reviewJson(int id, {required int author}) => {
+      'id': id,
+      'rating': 4,
+      'comment': 'review $id',
+      'user': {'id': author, 'name': 'User $author'},
+    };
+
 FakeNetwork _backend() => FakeNetwork()
   ..replySample('GET', ApiEndPoint.product(_foodSlug), _food)
   ..replySample('GET', ApiEndPoint.product(_unavailableSlug), _unavailable)
@@ -235,6 +273,7 @@ void main() {
       expect(reviews.length, 2);
       expect(reviews.first.id, '7');
       expect(reviews.first.authorName, 'نور العلي');
+      expect(reviews.first.authorId, '3');
       expect(reviews.first.rating, 5);
       expect(reviews.first.body, startsWith('الكبة'));
       expect(reviews.first.stars, '★★★★★');
@@ -308,7 +347,10 @@ void main() {
         _failure(await offline.getProduct(_foodSlug)),
         isA<NetworkFailure>(),
       );
-      expect(_failure(await offline.getReviews('14')), isA<NetworkFailure>());
+      expect(
+        _failure(await offline.getReviews(const ReviewsQuery(productId: '14'))),
+        isA<NetworkFailure>(),
+      );
     });
 
     test('a payload without an id is an unexpected failure', () async {
@@ -324,15 +366,59 @@ void main() {
       expect(failure.message, 'product_failed');
     });
 
-    test('reviews are a short first page, asked for by product id', () async {
-      final reviews = _value(await source.getReviews('14'));
+    test('reviews are read by product id, one large page when nobody is '
+        'looked for', () async {
+      final digest =
+          _value(await source.getReviews(const ReviewsQuery(productId: '14')));
 
-      expect(reviews.length, 2);
+      expect(digest.latest.length, 2);
+      expect(digest.mine, isNull);
+      expect(network.calls, hasLength(1));
       expect(network.last('GET').url, ApiEndPoint.productReviews('14'));
       expect(network.last('GET').query, {
         'page': 1,
-        'per_page': ProductRemoteDataSource.reviewPreviewSize,
+        'per_page': ProductRemoteDataSource.reviewPageSize,
       });
+    });
+
+    test('your own review is found on the first page without asking again',
+        () async {
+      final digest = _value(await source.getReviews(
+        const ReviewsQuery(productId: '14', authorId: '5'),
+      ));
+
+      expect(digest.mine?.id, '9');
+      expect(digest.mine?.authorId, '5');
+      expect(network.calls, hasLength(1));
+    });
+
+    test('your own review is looked for on the next pages', () async {
+      final paged = _PagedReviews({
+        1: [_reviewJson(1, author: 3), _reviewJson(2, author: 4)],
+        2: [_reviewJson(3, author: 6)],
+        3: [_reviewJson(4, author: 18)],
+      });
+
+      final digest = _value(await ProductRemoteDataSource(paged).getReviews(
+        const ReviewsQuery(productId: '14', authorId: '18'),
+      ));
+
+      expect(digest.mine?.id, '4');
+      expect(digest.latest.map((r) => r.id), ['1', '2']);
+      expect(paged.calls.map((c) => c.query?['page']), [1, 2, 3]);
+    });
+
+    test('the search gives up after a few pages', () async {
+      final paged = _PagedReviews({
+        for (var page = 1; page <= 9; page++) page: [_reviewJson(page, author: 3)],
+      });
+
+      final digest = _value(await ProductRemoteDataSource(paged).getReviews(
+        const ReviewsQuery(productId: '14', authorId: '18'),
+      ));
+
+      expect(digest.mine, isNull);
+      expect(paged.calls, hasLength(ProductRemoteDataSource.reviewScanPages));
     });
 
     test('a reviews answer without a list is a failure', () async {
@@ -342,7 +428,10 @@ void main() {
         body: _envelope({'id': 1}),
       );
 
-      expect(_failure(await source.getReviews('14')), isA<UnexpectedFailure>());
+      expect(
+        _failure(await source.getReviews(const ReviewsQuery(productId: '14'))),
+        isA<UnexpectedFailure>(),
+      );
     });
   });
 
@@ -419,9 +508,32 @@ void main() {
       expect(cubit.state.product?.isFavourite, isTrue);
       expect(cubit.state.quantity, 1);
       expect(cubit.state.reviews.length, 2);
+      expect(cubit.state.reviewsLoaded, isTrue);
+      expect(cubit.state.myReview, isNull);
       expect(cubit.state.isLoadingReviews, isFalse);
       expect(cubit.state.errorMessage, isNull);
       expect(network.last('GET').url, ApiEndPoint.productReviews('14'));
+    });
+
+    test('a signed-in reader finds their own review', () async {
+      await cubit.load(_foodSlug, customerId: '3');
+
+      expect(cubit.state.myReview?.id, '7');
+    });
+
+    test('a saved review becomes yours at once', () async {
+      await cubit.load(_foodSlug, customerId: '99');
+      expect(cubit.state.myReview, isNull);
+
+      cubit.reviewSaved(const Review(
+        id: '31',
+        authorName: '',
+        rating: 4,
+        body: 'Lovely',
+      ));
+
+      expect(cubit.state.myReview?.id, '31');
+      expect(cubit.state.reviews.length, 2);
     });
 
     test('failing reviews keep the product and show none', () async {
@@ -436,6 +548,7 @@ void main() {
 
       expect(cubit.state.status, ProductStatus.loaded);
       expect(cubit.state.reviews, isEmpty);
+      expect(cubit.state.reviewsLoaded, isFalse);
       expect(cubit.state.isLoadingReviews, isFalse);
       expect(cubit.state.errorMessage, isNull);
     });
@@ -598,15 +711,16 @@ void main() {
       expect(ProductMetaRows.fulfilmentKey({}), isNull);
     });
 
-    testWidgets('reviews draw one card each, with stars', (tester) async {
+    const others = [
+      Review(id: 'r1', authorName: 'Mariam A.', rating: 5, body: 'Fresh'),
+      Review(id: 'r2', authorName: 'Abdullah H.', rating: 4, body: ''),
+    ];
+
+    testWidgets('reviews draw one card each, with stars, and offer to add one',
+        (tester) async {
       await _pump(
         tester,
-        const ProductReviews(
-          reviews: [
-            Review(id: 'r1', authorName: 'Mariam A.', rating: 5, body: 'Fresh'),
-            Review(id: 'r2', authorName: 'Abdullah H.', rating: 4, body: ''),
-          ],
-        ),
+        ProductReviews(product: _product(), reviews: others, onSaved: (_) {}),
       );
 
       expect(find.byType(ReviewCard), findsNWidgets(2));
@@ -614,6 +728,42 @@ void main() {
       expect(find.text('★★★★☆'), findsOneWidget);
       expect(find.text('Fresh'), findsOneWidget);
       expect(find.text(''), findsNothing);
+      expect(find.text('review_add'), findsOneWidget);
+      expect(find.text('review_edit'), findsNothing);
+    });
+
+    testWidgets('your review leads, once, and the button offers to edit it',
+        (tester) async {
+      await _pump(
+        tester,
+        ProductReviews(
+          product: _product(),
+          reviews: others,
+          mine: others.last,
+          onSaved: (_) {},
+        ),
+      );
+
+      final cards = tester.widgetList<ReviewCard>(find.byType(ReviewCard));
+      expect(cards.map((c) => (c.review.id, c.isMine)), [
+        ('r2', true),
+        ('r1', false),
+      ]);
+      expect(find.text('review_yours'), findsOneWidget);
+      expect(find.text('Abdullah H.'), findsNothing);
+      expect(find.text('review_edit'), findsOneWidget);
+      expect(find.text('review_add'), findsNothing);
+    });
+
+    testWidgets('no reviews yet still offers to add the first', (tester) async {
+      await _pump(
+        tester,
+        ProductReviews(product: _product(), reviews: const [], onSaved: (_) {}),
+      );
+
+      expect(find.byType(ReviewCard), findsNothing);
+      expect(find.text('product_reviews_empty'), findsOneWidget);
+      expect(find.text('review_add'), findsOneWidget);
     });
 
     testWidgets('the gallery draws a bar per image and follows the swipe',

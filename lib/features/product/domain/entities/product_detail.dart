@@ -27,12 +27,14 @@ class Review extends Equatable {
   static const int maxRating = 5;
 
   final String id;
+  final String? authorId;
   final String authorName;
   final int rating;
   final String body;
 
   const Review({
     required this.id,
+    this.authorId,
     required this.authorName,
     required this.rating,
     required this.body,
@@ -44,7 +46,27 @@ class Review extends Equatable {
   }
 
   @override
-  List<Object?> get props => [id, authorName, rating, body];
+  List<Object?> get props => [id, authorId, authorName, rating, body];
+}
+
+class ReviewsQuery extends Equatable {
+  final String productId;
+  final String? authorId;
+
+  const ReviewsQuery({required this.productId, this.authorId});
+
+  @override
+  List<Object?> get props => [productId, authorId];
+}
+
+class ReviewDigest extends Equatable {
+  final List<Review> latest;
+  final Review? mine;
+
+  const ReviewDigest({this.latest = const [], this.mine});
+
+  @override
+  List<Object?> get props => [latest, mine];
 }
 
 class ProductDetail extends Equatable {

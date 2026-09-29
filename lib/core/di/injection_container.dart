@@ -17,6 +17,7 @@ Future<void> initDependencies() async {
   _registerSearchFeature();
   _registerFamilyFeature();
   _registerProductFeature();
+  _registerReviewsFeature();
   _registerCheckoutFeature();
   _registerOrdersFeature();
 }
@@ -341,6 +342,19 @@ void _registerCheckoutFeature() {
   sl.registerLazySingleton(() => PlaceOrderUseCase(sl<CheckoutRepository>()));
 
   sl.registerFactory(() => CheckoutCubit(sl(), sl()));
+}
+
+void _registerReviewsFeature() {
+  sl.registerLazySingleton<ReviewsDataSource>(
+    () => ReviewsRemoteDataSource(sl<NetworkService>()),
+  );
+  sl.registerLazySingleton<ReviewsRepository>(
+    () => ReviewsRepositoryImpl(sl<ReviewsDataSource>()),
+  );
+
+  sl.registerLazySingleton(() => SubmitReviewUseCase(sl<ReviewsRepository>()));
+
+  sl.registerFactory(() => ReviewFormCubit(sl()));
 }
 
 void _registerOrdersFeature() {

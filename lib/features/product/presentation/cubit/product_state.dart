@@ -8,6 +8,8 @@ class ProductState extends Equatable {
   final ProductStatus status;
   final ProductDetail? product;
   final List<Review> reviews;
+  final Review? myReview;
+  final bool reviewsLoaded;
   final bool isLoadingReviews;
   final int quantity;
   final bool isSavingFavourite;
@@ -17,6 +19,8 @@ class ProductState extends Equatable {
     this.status = ProductStatus.initial,
     this.product,
     this.reviews = const [],
+    this.myReview,
+    this.reviewsLoaded = false,
     this.isLoadingReviews = false,
     this.quantity = 1,
     this.isSavingFavourite = false,
@@ -34,6 +38,8 @@ class ProductState extends Equatable {
     ProductStatus? status,
     ProductDetail? product,
     List<Review>? reviews,
+    Review? myReview,
+    bool? reviewsLoaded,
     bool? isLoadingReviews,
     int? quantity,
     bool? isSavingFavourite,
@@ -43,6 +49,8 @@ class ProductState extends Equatable {
       status: status ?? this.status,
       product: product ?? this.product,
       reviews: reviews ?? this.reviews,
+      myReview: myReview ?? this.myReview,
+      reviewsLoaded: reviewsLoaded ?? this.reviewsLoaded,
       isLoadingReviews: isLoadingReviews ?? this.isLoadingReviews,
       quantity: quantity ?? this.quantity,
       isSavingFavourite: isSavingFavourite ?? this.isSavingFavourite,
@@ -55,6 +63,8 @@ class ProductState extends Equatable {
         status,
         product,
         reviews,
+        myReview,
+        reviewsLoaded,
         isLoadingReviews,
         quantity,
         isSavingFavourite,

@@ -1,5 +1,6 @@
 import '../../../../core/abstract/base_cubit.dart';
 import '../../../../core/domain/failure.dart';
+import '../../../product/domain/entities/product_detail.dart';
 import '../../domain/entities/order.dart';
 import '../../domain/usecases/orders_usecases.dart';
 import 'order_state.dart';
@@ -67,6 +68,10 @@ class OrderCubit extends BaseCubit<OrderState> {
       )),
     );
   }
+
+  void reviewSaved(String productId, Review review) => emit(state.copyWith(
+        reviews: {...state.reviews, productId: review},
+      ));
 
   Future<void> _loadOrder(String orderId) async {
     final result = await _getOrder(orderId);

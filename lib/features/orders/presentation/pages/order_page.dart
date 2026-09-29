@@ -13,6 +13,8 @@ import '../../../../core/widgets/confirm_sheet.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/state_views.dart';
 import '../../../catalog/domain/entities/image_ref.dart';
+import '../../../reviews/presentation/widgets/review_sheet.dart';
+import '../../domain/entities/order.dart';
 import '../cubit/order_cubit.dart';
 import '../cubit/order_state.dart';
 import '../widgets/order_header_card.dart';
@@ -113,6 +115,10 @@ class _OrderView extends StatelessWidget {
             items: order.items,
             totalDisplay: order.totals.total.display,
             productPhotos: productPhotos,
+            onReview: state.canReview
+                ? (line) => _review(context, state, line)
+                : null,
+            reviewedProductIds: state.reviews.keys.toSet(),
           ),
           if (state.canCancel) _buildCancel(context, state),
           const SizedBox(height: 12),
@@ -130,6 +136,30 @@ class _OrderView extends StatelessWidget {
           onPressed: () => _confirmCancel(context),
         ),
       );
+
+  Future<void> _review(
+    BuildContext context,
+    OrderState state,
+    OrderLine line,
+  ) async {
+    final productId = line.productId;
+    final order = state.order;
+    if (productId == null || order == null) return;
+
+    final cubit = context.read<OrderCubit>();
+    final saved = await showReviewSheet(
+      context,
+      ReviewTarget(
+        productId: productId,
+        productName: line.name,
+        orderId: order.id,
+        existing: state.reviews[productId],
+      ),
+    );
+    if (saved == null || !context.mounted) return;
+    cubit.reviewSaved(productId, saved);
+    showAppToast(context, 'review_saved'.tr());
+  }
 
   Future<void> _confirmCancel(BuildContext context) async {
     final cubit = context.read<OrderCubit>();

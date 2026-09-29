@@ -3,24 +3,71 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
+import '../../../../core/widgets/app_button.dart';
+import '../../../../core/widgets/app_toast.dart';
 import '../../../../core/widgets/section_label.dart';
+import '../../../reviews/presentation/widgets/review_sheet.dart';
 import '../../domain/entities/product_detail.dart';
 
 class ProductReviews extends StatelessWidget {
+  final ProductDetail product;
   final List<Review> reviews;
+  final Review? mine;
+  final ValueChanged<Review> onSaved;
 
-  const ProductReviews({super.key, required this.reviews});
+  const ProductReviews({
+    super.key,
+    required this.product,
+    required this.reviews,
+    this.mine,
+    required this.onSaved,
+  });
+
+  Future<void> _write(BuildContext context) async {
+    final saved = await showReviewSheet(
+      context,
+      ReviewTarget(
+        productId: product.id,
+        productName: product.name,
+        existing: mine,
+      ),
+    );
+    if (saved == null || !context.mounted) return;
+    onSaved(saved);
+    showAppToast(context, 'review_saved'.tr());
+  }
 
   @override
   Widget build(BuildContext context) {
+    final p = context.palette;
+    final mine = this.mine;
+    final others = [
+      for (final review in reviews)
+        if (review.id != mine?.id) review,
+    ];
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          SectionLabel('product_reviews'.tr()),
-          const SizedBox(height: 10),
-          for (final review in reviews) ReviewCard(review: review),
+          Row(
+            children: [
+              Expanded(child: SectionLabel('product_reviews'.tr())),
+              AppTextButton(
+                label: (mine == null ? 'review_add' : 'review_edit').tr(),
+                onPressed: () => _write(context),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          if (mine != null) ReviewCard(review: mine, isMine: true),
+          for (final review in others) ReviewCard(review: review),
+          if (mine == null && others.isEmpty)
+            Text(
+              'product_reviews_empty'.tr(),
+              style: AppStrings.w400(12, 1.6).c(p.neutral600),
+            ),
         ],
       ),
     );
@@ -29,8 +76,9 @@ class ProductReviews extends StatelessWidget {
 
 class ReviewCard extends StatelessWidget {
   final Review review;
+  final bool isMine;
 
-  const ReviewCard({super.key, required this.review});
+  const ReviewCard({super.key, required this.review, this.isMine = false});
 
   @override
   Widget build(BuildContext context) {
@@ -40,8 +88,8 @@ class ReviewCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: p.surface,
-        border: Border.all(color: p.divider),
+        color: isMine ? p.accent100 : p.surface,
+        border: Border.all(color: isMine ? p.accent200 : p.divider),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -51,10 +99,10 @@ class ReviewCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  review.authorName,
+                  isMine ? 'review_yours'.tr() : review.authorName,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: AppStrings.w800(12, 1).c(p.text),
+                  style: AppStrings.w800(12, 1).c(isMine ? p.accent700 : p.text),
                 ),
               ),
               const SizedBox(width: 8),

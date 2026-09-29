@@ -27,6 +27,6 @@ class ProductRepositoryImpl implements ProductRepository {
   }
 
   @override
-  Future<Either<Failure, List<Review>>> getReviews(String productId) =>
-      _dataSource.getReviews(productId);
+  Future<Either<Failure, ReviewDigest>> getReviews(ReviewsQuery query) =>
+      _dataSource.getReviews(query);
 }

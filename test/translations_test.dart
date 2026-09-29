@@ -35,6 +35,8 @@ const List<String> errorMessageKeys = [
   'location_failed',
   'addresses_failed',
   'address_not_found',
+  'review_failed',
+  'review_not_allowed',
 ];
 
 Map<String, dynamic> _load(String locale) =>

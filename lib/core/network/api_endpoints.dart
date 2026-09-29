@@ -30,6 +30,7 @@ class ApiEndPoint {
   static String productReviews(String productId) =>
       _url('products/$productId/reviews');
   static String get reviews => _url('reviews');
+  static String review(String id) => _url('reviews/$id');
 
   static String get stores => _url('stores');
   static String store(String slug) => _url('stores/$slug');

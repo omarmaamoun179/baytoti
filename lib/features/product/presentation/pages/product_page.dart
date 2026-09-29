@@ -29,9 +29,12 @@ class ProductPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final customerId = context.read<AuthCubit>().state.customer?.id;
+
     return BlocProvider(
       key: ValueKey(context.locale.languageCode),
-      create: (_) => sl<ProductCubit>()..load(productId),
+      create: (_) =>
+          sl<ProductCubit>()..load(productId, customerId: customerId),
       child: const _ProductView(),
     );
   }
@@ -114,8 +117,13 @@ class _ProductView extends StatelessWidget {
                 _buildDescription(context, product.description)
               else
                 const SizedBox(height: 16),
-              if (state.reviews.isNotEmpty)
-                ProductReviews(reviews: state.reviews),
+              if (state.reviewsLoaded)
+                ProductReviews(
+                  product: product,
+                  reviews: state.reviews,
+                  mine: state.myReview,
+                  onSaved: cubit.reviewSaved,
+                ),
               const SizedBox(height: 12),
             ],
           ),

@@ -27,6 +27,8 @@ enum OrderStatus {
 
   bool get isCancellable => this == pending || this == confirmed;
 
+  bool get isReviewable => this == delivered;
+
   static OrderStatus? fromWire(Object? value) {
     final wire = value is String ? value.trim().toLowerCase() : null;
     return values.where((status) => status.name == wire).firstOrNull;

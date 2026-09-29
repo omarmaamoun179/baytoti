@@ -10,12 +10,14 @@ class ProductCubit extends BaseCubit<ProductState> {
   final SetFavouriteUseCase _setFavourite;
 
   String _slug = '';
+  String? _customerId;
 
   ProductCubit(this._getProduct, this._getReviews, this._setFavourite)
       : super(const ProductState());
 
-  Future<void> load(String slug) async {
+  Future<void> load(String slug, {String? customerId}) async {
     _slug = slug;
+    _customerId = customerId ?? _customerId;
     emit(state.copyWith(status: ProductStatus.loading));
 
     final result = await _getProduct(slug);
@@ -40,16 +42,23 @@ class ProductCubit extends BaseCubit<ProductState> {
   Future<void> retry() => load(_slug);
 
   Future<void> _loadReviews(String productId) async {
-    final result = await _getReviews(productId);
+    final result = await _getReviews(
+      ReviewsQuery(productId: productId, authorId: _customerId),
+    );
 
     result.fold(
       (_) => emit(state.copyWith(isLoadingReviews: false)),
-      (reviews) => emit(state.copyWith(
-        reviews: reviews,
+      (digest) => emit(state.copyWith(
+        reviews: digest.latest,
+        myReview: digest.mine,
+        reviewsLoaded: true,
         isLoadingReviews: false,
       )),
     );
   }
+
+  void reviewSaved(Review review) =>
+      emit(state.copyWith(myReview: review, reviewsLoaded: true));
 
   int _fit(int quantity, ProductDetail product) =>
       product.canOrder ? quantity.clamp(1, product.maxQuantity) : 1;

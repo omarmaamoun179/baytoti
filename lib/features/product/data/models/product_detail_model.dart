@@ -7,6 +7,7 @@ import '../../domain/entities/product_detail.dart';
 class ReviewModel extends Review {
   const ReviewModel({
     required super.id,
+    super.authorId,
     required super.authorName,
     required super.rating,
     required super.body,
@@ -17,6 +18,7 @@ class ReviewModel extends Review {
 
     return ReviewModel(
       id: jsonId(json['id']) ?? '',
+      authorId: jsonId(user['id'] ?? json['user_id']),
       authorName:
           jsonString(user['name'] ?? json['author_name'])?.trim() ?? '',
       rating: jsonCount(json['rating']) ?? 0,

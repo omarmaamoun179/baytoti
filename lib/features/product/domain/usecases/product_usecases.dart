@@ -17,12 +17,12 @@ class GetProductUseCase
 }
 
 class GetProductReviewsUseCase
-    implements UseCase<Either<Failure, List<Review>>, String> {
+    implements UseCase<Either<Failure, ReviewDigest>, ReviewsQuery> {
   final ProductRepository _repository;
 
   GetProductReviewsUseCase(this._repository);
 
   @override
-  Future<Either<Failure, List<Review>>> call(String productId) =>
-      _repository.getReviews(productId);
+  Future<Either<Failure, ReviewDigest>> call(ReviewsQuery query) =>
+      _repository.getReviews(query);
 }

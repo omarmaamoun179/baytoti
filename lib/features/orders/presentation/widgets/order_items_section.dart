@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../../../core/theme/app_palette.dart';
 import '../../../../core/utils/app_strings.dart';
+import '../../../../core/widgets/app_button.dart';
 import '../../../../core/widgets/section_label.dart';
 import '../../../catalog/domain/entities/image_ref.dart';
 import '../../domain/entities/order.dart';
@@ -11,12 +12,16 @@ class OrderItemsSection extends StatelessWidget {
   final List<OrderLine> items;
   final String totalDisplay;
   final Map<String, ImageRef> productPhotos;
+  final ValueChanged<OrderLine>? onReview;
+  final Set<String> reviewedProductIds;
 
   const OrderItemsSection({
     super.key,
     required this.items,
     required this.totalDisplay,
     this.productPhotos = const {},
+    this.onReview,
+    this.reviewedProductIds = const {},
   });
 
   @override
@@ -75,12 +80,26 @@ class OrderItemsSection extends StatelessWidget {
                   '× ${line.quantity}',
                   style: AppStrings.w400(11, 1.3).c(p.neutral600),
                 ),
+                if (onReview != null && line.productId != null)
+                  _buildReview(line),
               ],
             ),
           ),
           const SizedBox(width: 12),
           Text(line.lineTotal.display, style: AppStrings.w800(12, 1).c(p.text)),
         ],
+      ),
+    );
+  }
+
+  Widget _buildReview(OrderLine line) {
+    final reviewed = reviewedProductIds.contains(line.productId);
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 2),
+      child: AppTextButton(
+        label: (reviewed ? 'order_review_edit' : 'order_review_item').tr(),
+        onPressed: () => onReview!(line),
       ),
     );
   }
