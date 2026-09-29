@@ -86,6 +86,22 @@ translations, so without the hold the app would paint empty frames between
 the green native splash and the green Flutter one. Anything that stops the
 splash from mounting also keeps the native splash on screen.
 
+### App icon
+
+From the design project's `Baytouti App Icons.dc.html` (the customer icon):
+the splash mark on `#1F5A42`, over a `#236449` circle. `assets/app_icon/`
+holds the sources, which are not bundled into the app. `icon.svg` is the
+design's SVG and `icon.png` its 1024px render (iOS, and Android before 8).
+`foreground.svg`/`.png` are the circle and mark alone on transparent, shrunk
+to the middle 72/108 of the canvas, the part of an adaptive icon a launcher
+shows. The adaptive background is the colour `#1F5A42`, and
+`adaptive_icon_foreground_inset: 0` stops `flutter_launcher_icons` adding its
+default 16% inset on top, which would shrink the mark twice.
+`remove_alpha_ios` strips the alpha channel App Store Connect refuses. The
+PNGs were rendered with `flutter_svg` in a throwaway test (there is no SVG
+rasterizer on this machine). After changing them, run
+`dart run flutter_launcher_icons`.
+
 `SplashOverlay` is not a route. It sits in `MaterialApp.router`'s `builder`
 over the router, so the guard picks the first screen (Welcome for a guest,
 Home or the location picker for a member) and that screen loads behind the
