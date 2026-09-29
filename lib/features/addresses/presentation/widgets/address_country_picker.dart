@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/pill_chip.dart';
 import '../../domain/entities/address.dart';
-import 'address_field.dart';
 
 class AddressCountryPicker extends StatelessWidget {
   static const List<(String, String)> _countries = [

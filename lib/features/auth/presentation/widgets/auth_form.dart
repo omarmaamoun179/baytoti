@@ -10,9 +10,12 @@ import '../../../../core/widgets/app_text_field.dart';
 import '../../../../core/widgets/avatar_picker.dart';
 import '../../../../core/widgets/phone_text_form_field.dart';
 import '../../domain/entities/otp_challenge.dart';
-import 'terms_checkbox.dart';
 
 class AuthForm extends StatefulWidget {
+  static Set<String> fieldsFor(AuthMode mode) => mode == AuthMode.signup
+      ? const {'name', 'email', 'phone', 'password', 'password_confirmation'}
+      : const {'login', 'phone', 'password'};
+
   final AuthMode mode;
   final bool isSubmitting;
   final Map<String, String> serverErrors;
@@ -24,7 +27,7 @@ class AuthForm extends StatefulWidget {
     String? passwordConfirmation,
     String? avatarPath,
   }) onSubmit;
-  final ValueChanged<String> onInvalid;
+  final ValueChanged<String> onFieldChanged;
   final Future<String?> Function() onPickPhoto;
 
   const AuthForm({
@@ -32,7 +35,7 @@ class AuthForm extends StatefulWidget {
     required this.mode,
     required this.isSubmitting,
     required this.onSubmit,
-    required this.onInvalid,
+    required this.onFieldChanged,
     required this.onPickPhoto,
     this.serverErrors = const {},
   });
@@ -50,8 +53,6 @@ class _AuthFormState extends State<AuthForm> {
   final _passwordConfirmation = TextEditingController();
   String _e164 = '';
   String? _avatarPath;
-  bool _terms = false;
-  Set<String> _invalid = const {};
 
   bool get _signup => widget.mode == AuthMode.signup;
 
@@ -74,24 +75,7 @@ class _AuthFormState extends State<AuthForm> {
   void _submit() {
     FocusScope.of(context).unfocus();
 
-    final formValid = _formKey.currentState?.validate() ?? true;
-    final problems = <String, String>{
-      if (_signup) 'name': ?validateName(_name.text),
-      if (_signup) 'email': ?validateEmail(_email.text),
-      'password': ?validatePassword(_password.text),
-      if (_signup)
-        'password_confirmation': ?validatePasswordConfirmation(
-          _passwordConfirmation.text,
-          _password.text,
-        ),
-      if (_signup && !_terms) 'terms': 'auth_terms_required'.tr(),
-    };
-
-    setState(() => _invalid = problems.keys.toSet());
-    if (problems.isNotEmpty || !formValid) {
-      if (problems.isNotEmpty) widget.onInvalid(problems.values.join('\n'));
-      return;
-    }
+    if (!(_formKey.currentState?.validate() ?? true)) return;
 
     widget.onSubmit(
       phone: _e164,
@@ -103,12 +87,16 @@ class _AuthFormState extends State<AuthForm> {
     );
   }
 
-  bool _hasError(String field, String serverKey) =>
-      _invalid.contains(field) || widget.serverErrors.containsKey(serverKey);
+  void _passwordChanged() {
+    widget.onFieldChanged('password');
+    if (_signup) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = context.palette;
+    final errors = widget.serverErrors;
+    final phoneError = errors['phone'] ?? errors['login'];
 
     return Form(
       key: _formKey,
@@ -125,26 +113,26 @@ class _AuthFormState extends State<AuthForm> {
               onPick: widget.isSubmitting ? null : _pickPhoto,
             ),
             const SizedBox(height: 16),
-            LabeledField(
+            AppTextFormField(
               label: 'auth_full_name'.tr(),
-              child: AppTextField(
-                controller: _name,
-                hint: 'auth_name_hint'.tr(),
-                maxLength: 100,
-                textInputAction: TextInputAction.next,
-                hasError: _hasError('name', 'name'),
-              ),
+              controller: _name,
+              hint: 'auth_name_hint'.tr(),
+              maxLength: RegisterParams.nameMaxLength,
+              textInputAction: TextInputAction.next,
+              validator: validateName,
+              serverError: errors['name'],
+              onChanged: (_) => widget.onFieldChanged('name'),
             ),
             const SizedBox(height: 16),
-            LabeledField(
+            AppTextFormField(
               label: 'auth_email'.tr(),
-              child: AppTextField(
-                controller: _email,
-                hint: 'auth_email_hint'.tr(),
-                keyboardType: TextInputType.emailAddress,
-                textInputAction: TextInputAction.next,
-                hasError: _hasError('email', 'email'),
-              ),
+              controller: _email,
+              hint: 'auth_email_hint'.tr(),
+              keyboardType: TextInputType.emailAddress,
+              textInputAction: TextInputAction.next,
+              validator: validateEmail,
+              serverError: errors['email'],
+              onChanged: (_) => widget.onFieldChanged('email'),
             ),
             const SizedBox(height: 16),
           ],
@@ -154,37 +142,37 @@ class _AuthFormState extends State<AuthForm> {
             controller: _phone,
             requiredMessage: 'phone_required'.tr(),
             invalidMessage: 'invalid_phone'.tr(),
-            onInputChanged: (number) => _e164 = number.phoneNumber ?? '',
+            onInputChanged: (number) {
+              _e164 = number.phoneNumber ?? '';
+              widget.onFieldChanged('phone');
+              widget.onFieldChanged('login');
+            },
           ),
+          if (phoneError != null) FieldErrorText(phoneError),
           const SizedBox(height: 16),
-          LabeledField(
+          AppTextFormField(
             label: 'auth_password'.tr(),
-            child: AppTextField(
-              controller: _password,
-              hint: 'auth_password_hint'.tr(),
-              obscureText: true,
-              textInputAction:
-                  _signup ? TextInputAction.next : TextInputAction.done,
-              hasError: _hasError('password', 'password'),
-            ),
+            controller: _password,
+            hint: 'auth_password_hint'.tr(),
+            obscureText: true,
+            textInputAction:
+                _signup ? TextInputAction.next : TextInputAction.done,
+            validator: validatePassword,
+            serverError: errors['password'],
+            onChanged: (_) => _passwordChanged(),
           ),
           if (_signup) ...[
             const SizedBox(height: 16),
-            LabeledField(
+            AppTextFormField(
               label: 'auth_password_confirmation'.tr(),
-              child: AppTextField(
-                controller: _passwordConfirmation,
-                hint: 'auth_password_hint'.tr(),
-                obscureText: true,
-                textInputAction: TextInputAction.done,
-                hasError: _hasError('password_confirmation', 'password_confirmation'),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TermsCheckbox(
-              accepted: _terms,
-              hasError: _invalid.contains('terms'),
-              onToggle: () => setState(() => _terms = !_terms),
+              controller: _passwordConfirmation,
+              hint: 'auth_password_hint'.tr(),
+              obscureText: true,
+              textInputAction: TextInputAction.done,
+              validator: (value) =>
+                  validatePasswordConfirmation(value, _password.text),
+              serverError: errors['password_confirmation'],
+              onChanged: (_) => widget.onFieldChanged('password_confirmation'),
             ),
           ],
           const SizedBox(height: 16),

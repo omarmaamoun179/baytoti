@@ -20,13 +20,15 @@ import 'package:baytoti/features/auth/presentation/cubit/auth_cubit.dart';
 import 'package:baytoti/features/auth/presentation/cubit/auth_state.dart';
 import 'package:baytoti/features/auth/presentation/cubit/otp_request_cubit.dart';
 import 'package:baytoti/features/auth/presentation/cubit/otp_verify_cubit.dart';
+import 'package:baytoti/features/auth/presentation/pages/auth_page.dart';
 import 'package:baytoti/features/auth/presentation/widgets/auth_form.dart';
-import 'package:baytoti/features/auth/presentation/widgets/terms_checkbox.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 
 import 'support/fake_network.dart';
 
@@ -373,6 +375,33 @@ void main() {
       expect(cubit.state.status, OtpRequestStatus.sent);
     });
 
+    test('editing a refused field clears only its error', () async {
+      network.replySample(
+        'POST',
+        ApiEndPoint.register,
+        'betouti/auth_register_422.json',
+        status: 422,
+      );
+      await cubit.submit(
+        phone: _phone,
+        password: 'p',
+        fullName: '',
+        email: '',
+        passwordConfirmation: 'p',
+      );
+      final states = <OtpRequestState>[];
+      final sub = cubit.stream.listen(states.add);
+
+      cubit.clearFieldError('name');
+      cubit.clearFieldError('phone');
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.fieldErrors.keys, {'email', 'password'});
+      expect(cubit.state.status, OtpRequestStatus.failed);
+      expect(states, hasLength(1));
+      await sub.cancel();
+    });
+
     test('logging in to a verified account skips the code', () async {
       network.replySample(
         'POST',
@@ -502,10 +531,12 @@ void main() {
 
   group('the sign-up form', () {
     late List<String?> submitted;
+    late List<String> changed;
     late int picks;
 
     setUp(() {
       submitted = [];
+      changed = [];
       picks = 0;
     });
 
@@ -513,6 +544,7 @@ void main() {
       WidgetTester tester, {
       AuthMode mode = AuthMode.signup,
       String? picked,
+      Map<String, String> serverErrors = const {},
     }) async {
       tester.view.physicalSize = const Size(900, 2400);
       tester.view.devicePixelRatio = 1;
@@ -526,7 +558,8 @@ void main() {
                 child: AuthForm(
                   mode: mode,
                   isSubmitting: false,
-                  onInvalid: (_) {},
+                  serverErrors: serverErrors,
+                  onFieldChanged: changed.add,
                   onPickPhoto: () async {
                     picks++;
                     return picked;
@@ -564,10 +597,131 @@ void main() {
         'password123',
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(TermsCheckbox));
       await tester.tap(find.text('auth_cta_signup'));
       await tester.pumpAndSettle();
     }
+
+    Finder under(String labelKey, String message) => find.descendant(
+          of: find.byWidgetPredicate(
+            (w) => w is LabeledField && w.label == labelKey.tr(),
+          ),
+          matching: find.text(message),
+        );
+
+    Finder phoneInput() => find.descendant(
+          of: find.byType(PhoneTextFormField),
+          matching: find.byType(TextField),
+        );
+
+    testWidgets('a field says what is wrong under itself as the user types',
+        (tester) async {
+      await pumpForm(tester);
+
+      await tester.enterText(_input('auth_full_name'), 'م');
+      await tester.pump();
+      expect(under('auth_full_name', 'name_too_short'), findsOne);
+
+      await tester.enterText(_input('auth_full_name'), 'مريم الكندري');
+      await tester.pump();
+      expect(find.text('name_too_short'), findsNothing);
+
+      await tester.enterText(_input('auth_email'), 'mariam@');
+      await tester.pump();
+      expect(under('auth_email', 'invalid_email'), findsOne);
+
+      await tester.enterText(_input('auth_email'), 'mariam@example.com');
+      await tester.pump();
+      expect(find.text('invalid_email'), findsNothing);
+      expect(submitted, isEmpty);
+    });
+
+    testWidgets('an untouched field stays quiet', (tester) async {
+      await pumpForm(tester);
+
+      await tester.enterText(_input('auth_full_name'), 'م');
+      await tester.pump();
+
+      expect(find.text('email_required'), findsNothing);
+      expect(find.text('password_required'), findsNothing);
+      expect(find.text('phone_required'), findsNothing);
+    });
+
+    testWidgets('submitting an empty form marks every field and sends nothing',
+        (tester) async {
+      await pumpForm(tester);
+
+      await tester.tap(find.text('auth_cta_signup'));
+      await tester.pumpAndSettle();
+
+      expect(under('auth_full_name', 'name_required'), findsOne);
+      expect(under('auth_email', 'email_required'), findsOne);
+      expect(
+        find.byWidgetPredicate(
+          (w) =>
+              w is Text &&
+              w.data == 'phone_required' &&
+              w.style?.fontSize != 0,
+        ),
+        findsOne,
+      );
+      expect(under('auth_password', 'password_required'), findsOne);
+      expect(
+        under('auth_password_confirmation', 'password_confirmation_required'),
+        findsOne,
+      );
+      expect(find.byType(SnackBar), findsNothing);
+      expect(submitted, isEmpty);
+    });
+
+    testWidgets('the confirmation is checked again when the password changes',
+        (tester) async {
+      await pumpForm(tester);
+
+      await tester.enterText(_input('auth_password'), 'password123');
+      await tester.enterText(
+        _input('auth_password_confirmation'),
+        'password123',
+      );
+      await tester.pump();
+      expect(find.text('password_mismatch'), findsNothing);
+
+      await tester.enterText(_input('auth_password'), 'password124');
+      await tester.pump();
+
+      expect(under('auth_password_confirmation', 'password_mismatch'), findsOne);
+    });
+
+    testWidgets('server errors sit under their fields and editing reports it',
+        (tester) async {
+      await pumpForm(tester, serverErrors: const {
+        'email': 'The email has already been taken.',
+        'phone': 'The phone has already been taken.',
+      });
+
+      expect(under('auth_email', 'The email has already been taken.'), findsOne);
+      expect(find.text('The phone has already been taken.'), findsOne);
+
+      await tester.enterText(_input('auth_email'), 'other@example.com');
+      await tester.enterText(phoneInput(), '55512346');
+      await tester.pump();
+
+      expect(changed, containsAll(['email', 'phone']));
+    });
+
+    testWidgets('a login refusal sits under the phone number', (tester) async {
+      await pumpForm(
+        tester,
+        mode: AuthMode.login,
+        serverErrors: const {'login': 'بيانات الدخول غير صحيحة.'},
+      );
+
+      expect(find.text('بيانات الدخول غير صحيحة.'), findsOne);
+
+      await tester.enterText(phoneInput(), '55512345');
+      await tester.pump();
+
+      expect(changed, contains('login'));
+    });
 
     testWidgets('the photo is optional: signing up without one sends none',
         (tester) async {
@@ -575,6 +729,7 @@ void main() {
 
       expect(find.byType(AvatarPicker), findsOne);
       expect(find.text('auth_add_photo'), findsOne);
+      expect(find.text('auth_terms'), findsNothing);
 
       await fillAndSubmit(tester);
 
@@ -610,10 +765,205 @@ void main() {
       expect(find.text('auth_add_photo'), findsOne);
     });
 
+    EditableText editable(WidgetTester tester, String labelKey) =>
+        tester.widget<EditableText>(find.descendant(
+          of: _input(labelKey),
+          matching: find.byType(EditableText),
+        ));
+
+    Finder toggle(String labelKey) => find.descendant(
+          of: find.byWidgetPredicate(
+            (w) => w is LabeledField && w.label == labelKey.tr(),
+          ),
+          matching: find.byType(IconButton),
+        );
+
+    testWidgets('each password can be shown and hidden on its own',
+        (tester) async {
+      await pumpForm(tester);
+      await tester.enterText(_input('auth_password'), 'password123');
+
+      expect(editable(tester, 'auth_password').obscureText, isTrue);
+      expect(editable(tester, 'auth_password_confirmation').obscureText, isTrue);
+      expect(find.byTooltip('password_show'), findsNWidgets(2));
+
+      await tester.tap(toggle('auth_password'));
+      await tester.pump();
+
+      expect(editable(tester, 'auth_password').obscureText, isFalse);
+      expect(editable(tester, 'auth_password_confirmation').obscureText, isTrue);
+      expect(find.byTooltip('password_hide'), findsOne);
+      expect(find.text('password123'), findsOne);
+
+      await tester.tap(toggle('auth_password'));
+      await tester.pump();
+
+      expect(editable(tester, 'auth_password').obscureText, isTrue);
+    });
+
+    testWidgets('a shown password is never autocorrected or suggested',
+        (tester) async {
+      await pumpForm(tester);
+
+      await tester.tap(toggle('auth_password_confirmation'));
+      await tester.pump();
+
+      final shown = editable(tester, 'auth_password_confirmation');
+      expect(shown.obscureText, isFalse);
+      expect(shown.autocorrect, isFalse);
+      expect(shown.enableSuggestions, isFalse);
+    });
+
+    testWidgets('only the password fields get the button', (tester) async {
+      await pumpForm(tester);
+
+      expect(toggle('auth_full_name'), findsNothing);
+      expect(toggle('auth_email'), findsNothing);
+      expect(editable(tester, 'auth_email').autocorrect, isTrue);
+    });
+
+    testWidgets('logging in can show its password too', (tester) async {
+      await pumpForm(tester, mode: AuthMode.login);
+
+      await tester.tap(toggle('auth_password'));
+      await tester.pump();
+
+      expect(editable(tester, 'auth_password').obscureText, isFalse);
+    });
+
     testWidgets('logging in asks for no photo', (tester) async {
       await pumpForm(tester, mode: AuthMode.login);
 
       expect(find.byType(AvatarPicker), findsNothing);
+    });
+  });
+
+  group('the auth page', () {
+    setUp(() {
+      GetIt.instance.registerFactoryParam<OtpRequestCubit, AuthMode, void>(
+        (mode, _) => OtpRequestCubit(
+          RegisterUseCase(repository),
+          LoginUseCase(repository),
+          RequestOtpUseCase(repository),
+          mode: mode,
+        ),
+      );
+    });
+
+    tearDown(() => GetIt.instance.reset());
+
+    Future<void> pumpPage(WidgetTester tester, AuthMode mode) async {
+      tester.view.physicalSize = const Size(900, 2800);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final router = GoRouter(
+        initialLocation: '/auth',
+        routes: [
+          GoRoute(
+            path: '/auth',
+            builder: (_, _) => AuthPage(initialMode: mode),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+      await tester.pumpWidget(ScreenUtilScope(
+        child: Builder(
+          builder: (_) => MaterialApp.router(
+            theme: AppTheme.light,
+            routerConfig: router,
+          ),
+        ),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> fill(WidgetTester tester, {bool signup = true}) async {
+      if (signup) {
+        await tester.enterText(_input('auth_full_name'), 'مريم الكندري');
+        await tester.enterText(_input('auth_email'), 'mariam@example.com');
+      }
+      await tester.enterText(
+        find.descendant(
+          of: find.byType(PhoneTextFormField),
+          matching: find.byType(TextField),
+        ),
+        '55512345',
+      );
+      await tester.enterText(_input('auth_password'), 'password123');
+      if (signup) {
+        await tester.enterText(
+          _input('auth_password_confirmation'),
+          'password123',
+        );
+      }
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a refused sign-up puts each error under its field, no toast',
+        (tester) async {
+      network.replySample(
+        'POST',
+        ApiEndPoint.register,
+        'betouti/auth_register_422.json',
+        status: 422,
+      );
+      await pumpPage(tester, AuthMode.signup);
+      await fill(tester);
+
+      await tester.tap(find.text('auth_cta_signup'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('الاسم مطلوب.'), findsOne);
+      expect(find.text('البريد الالكتروني مطلوب.'), findsOne);
+      expect(find.text('كلمة السر مطلوب.'), findsOne);
+      expect(find.byType(SnackBar), findsNothing);
+
+      await tester.enterText(_input('auth_full_name'), 'مريم');
+      await tester.pump();
+
+      expect(find.text('الاسم مطلوب.'), findsNothing);
+      expect(find.text('البريد الالكتروني مطلوب.'), findsOne);
+    });
+
+    testWidgets('a refused login shows under the phone number, no toast',
+        (tester) async {
+      network.replySample(
+        'POST',
+        ApiEndPoint.login,
+        'auth/login_invalid.cloak_shape.json',
+        status: 422,
+      );
+      await pumpPage(tester, AuthMode.login);
+      await fill(tester, signup: false);
+
+      await tester.tap(find.text('auth_cta_login'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('بيانات الدخول غير صحيحة.'), findsOne);
+      expect(find.byType(SnackBar), findsNothing);
+    });
+
+    testWidgets('a failure with no field to show it on is a toast',
+        (tester) async {
+      network.replySample(
+        'POST',
+        ApiEndPoint.register,
+        'betouti/products_guest_500.json',
+        status: 500,
+      );
+      await pumpPage(tester, AuthMode.signup);
+      await fill(tester);
+
+      await tester.tap(find.text('auth_cta_signup'));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.descendant(
+          of: find.byType(SnackBar),
+          matching: find.text('server_error'),
+        ),
+        findsOne,
+      );
     });
   });
 }

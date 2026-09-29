@@ -67,20 +67,3 @@ class AddressField extends StatelessWidget {
     );
   }
 }
-
-class FieldErrorText extends StatelessWidget {
-  final String message;
-
-  const FieldErrorText(this.message, {super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 6),
-      child: Text(
-        message,
-        style: AppStrings.w400(11, 1.5).c(context.palette.danger),
-      ),
-    );
-  }
-}

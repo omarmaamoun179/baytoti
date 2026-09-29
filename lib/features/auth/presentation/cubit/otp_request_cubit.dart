@@ -124,4 +124,12 @@ class OtpRequestCubit extends BaseCubit<OtpRequestState> {
   }
 
   void acknowledge() => emit(state.copyWith(status: OtpRequestStatus.idle));
+
+  void clearFieldError(String field) {
+    if (!state.fieldErrors.containsKey(field)) return;
+    emit(state.copyWith(
+      errorMessage: state.errorMessage,
+      fieldErrors: {...state.fieldErrors}..remove(field),
+    ));
+  }
 }

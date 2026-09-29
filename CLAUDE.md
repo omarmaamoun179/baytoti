@@ -419,7 +419,9 @@ page as a `_buildX` method. **Provider placement:** `XPage` creates the
 - Shared widgets in `core/widgets/`: `AppHeader`, `HeaderIconButton`,
   `AppButton`, `SectionLabel`, `SectionHeading`, `QuantityStepper`,
   `StatGrid`, `PillChip`/`ChipStrip`, `LabeledField`/`AppTextField`
-  (`obscureText` for passwords), `PhoneTextFormField` (`intl_phone_number_input`,
+  (`obscureText` for passwords, with a show/hide eye),
+  `AppTextFormField` (label + field + validator + message under it) and
+  `FieldErrorText`, `PhoneTextFormField` (`intl_phone_number_input`,
   Kuwait and Egypt), `EmptyState`, `LoadingView`/`ErrorView`, `NetworkPhoto`
   (an empty image list shows the design's neutral placeholder),
   `AvatarPhoto` (round; a URL, a picked file or a person icon) and
@@ -429,7 +431,18 @@ page as a `_buildX` method. **Provider placement:** `XPage` creates the
 **Cubits** extend `BaseCubit`. A state's `copyWith` **clears**
 `errorMessage` unless passed again. **Errors are shown in a toast**
 (`showAppToast(context, message, isError: true)`); inside a bottom sheet use
-`SheetErrorNote`.
+`SheetErrorNote`. **Form validation is the exception:** a message about one
+field goes under that field in `FieldErrorText`, never in a toast. The sign-up
+and login form (`AuthForm`) is built from `AppTextFormField` (a `FormField`
+with `AutovalidateMode.onUserInteraction`) and `PhoneTextFormField`, so a
+field is checked on every keystroke once the user has typed in it, and every
+field is checked on submit; an untouched field stays quiet. The confirmation
+re-checks when the password changes. A 422's `fieldErrors` also go under
+their fields (`login` and `phone` both under the phone number) until that
+field is edited (`OtpRequestCubit.clearFieldError`). `AuthPage` toasts only
+what has no field in the current mode (`AuthForm.fieldsFor`), or the message
+of a failure that carries no field errors. The address and edit-profile forms
+also show errors under their fields, but check them on save.
 
 Paginated lists: `PagedScrollListener(isLoading:, onEndOfPage:, child:)`
 over one scrollable; the cubit guards `loadMore` (in flight / no more pages),

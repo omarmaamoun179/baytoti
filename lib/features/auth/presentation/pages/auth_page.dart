@@ -52,18 +52,24 @@ class _AuthView extends StatelessWidget {
           context.read<AuthCubit>().completeSignIn(customer);
         }
       case OtpRequestStatus.failed:
-        final message = [
-          ?state.errorMessage,
-          ...state.fieldErrors.values,
-        ].join('\n');
-        showAppToast(
-          context,
-          message.isEmpty ? 'auth_failed'.tr() : message,
-          isError: true,
-        );
+        final message = _unshownError(state);
+        if (message != null) showAppToast(context, message, isError: true);
       case OtpRequestStatus.idle || OtpRequestStatus.submitting:
         break;
     }
+  }
+
+  String? _unshownError(OtpRequestState state) {
+    if (state.fieldErrors.isEmpty) {
+      final message = state.errorMessage ?? '';
+      return message.isEmpty ? 'auth_failed'.tr() : message;
+    }
+    final shown = AuthForm.fieldsFor(state.mode);
+    final unshown = [
+      for (final entry in state.fieldErrors.entries)
+        if (!shown.contains(entry.key)) entry.value,
+    ];
+    return unshown.isEmpty ? null : unshown.join('\n');
   }
 
   void _back(BuildContext context) =>
@@ -108,8 +114,9 @@ class _AuthView extends StatelessWidget {
                             mode: state.mode,
                             isSubmitting: state.isSubmitting,
                             serverErrors: state.fieldErrors,
-                            onInvalid: (message) =>
-                                showAppToast(context, message, isError: true),
+                            onFieldChanged: context
+                                .read<OtpRequestCubit>()
+                                .clearFieldError,
                             onPickPhoto: () => pickGalleryPhoto(context),
                             onSubmit: ({
                               required phone,
