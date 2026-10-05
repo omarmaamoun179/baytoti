@@ -44,15 +44,17 @@ class ProductRemoteDataSource implements ProductDataSource {
         'ProductRemoteDataSource.getReviews',
         () async {
           final authorId = query.authorId;
-          var page = await _reviewPage(query.productId, 1);
+          var number = 1;
+          var page = await _reviewPage(query.productId, number);
           final latest = page.items.take(reviewPreviewSize).toList();
           var mine = _authoredBy(page.items, authorId);
 
           while (mine == null &&
               authorId != null &&
-              page.hasMore &&
-              page.currentPage < reviewScanPages) {
-            page = await _reviewPage(query.productId, page.nextPage);
+              number < page.lastPage &&
+              number < reviewScanPages) {
+            number++;
+            page = await _reviewPage(query.productId, number);
             mine = _authoredBy(page.items, authorId);
           }
           return ReviewDigest(latest: latest, mine: mine);

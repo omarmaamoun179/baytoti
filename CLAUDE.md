@@ -154,11 +154,16 @@ All screens run on the live API. Known gaps and deliberate departures:
   update, location
   context and the success answers of register/login/verify-otp follow
   `../cloack` or the guide, not a captured Betouti response.
-- **Sign-in and a browsing location are required before any tab.** Betouti's
-  `/products` and `/stores` answer **500 for guests** (a server bug:
-  `LocationContextService::getRequiredActiveLocation()` gets a null user).
-  The backend also runs with debug on — 500s leak PHP stack traces; core maps
-  every 5xx to `server_error` so none reaches the screen.
+- **A guest browses Home, Explore, Search, products and stores**; cart,
+  profile and everything under them need an account (`browseRoutes` in
+  `app_router.dart`). Add to cart, favourite and the notifications bell call
+  `requireSignIn`, which toasts `sign_in_required` and pushes `/auth`.
+  **Caveat:** Betouti's `/products` and `/stores` answer **500 for guests** (a
+  server bug: `LocationContextService::getRequiredActiveLocation()` gets a
+  null user), so Explore, Search and the stores list show an error for a guest
+  until the backend fixes it. A member still needs a browsing location before
+  any tab. The backend also runs with debug on — 500s leak PHP stack traces;
+  core maps every 5xx to `server_error` so none reaches the screen.
 - **SMS is stubbed on the backend**: `request-otp` answers `data: null` and
   puts the code in `message` (`"… demo otp :833801"`). `OtpChallengeModel`
   reads it into `demoCode` and `OtpPage` shows it as a test-code note.
@@ -205,7 +210,37 @@ All screens run on the live API. Known gaps and deliberate departures:
   badge and falls back to the description. It lives in the `home` feature
   because it reuses `TrustedStore` and `TrustedStoreCard`; like Home it
   reloads when the browsing location moves.
-- **Removed, no backend**: coupons, order rating, following a family,
+- **Reviews** (`features/reviews` writes them, `features/product` reads
+  them). The contract comes from the OpenAPI spec (read 2026-09-29):
+  - `POST /reviews {product_id, rating 1–5, order_id?, comment? ≤2000}`
+    creates a review.
+  - `PATCH /reviews/{id} {rating, comment|null}` edits one; `PUT` is a 405.
+    `DELETE` exists but is unused.
+  - A 403 becomes `review_not_allowed`, and a 422 carries field errors.
+  - The success bodies are untyped, so an answer without a review falls
+    back to what was sent.
+  - `GET products/{id}/reviews` needs a token on Betouti (a guest gets a
+    401).
+
+  No resource says whether the customer has already reviewed a product, so
+  the product page reads reviews 100 a page and looks for `user.id` equal to
+  the signed-in customer (`ReviewsQuery.authorId`), over at most 5 pages
+  (`reviewScanPages`). The page count is kept locally, never taken from the
+  server's `current_page`, because a server that repeats page 1 would make
+  the scan loop forever. The first 3 reviews are the preview. A review still
+  awaiting moderation may not be listed, so the button can say "Add" for a
+  review the server then refuses as a duplicate.
+
+  `showReviewSheet` / `ReviewSheet` is shared: stars and an optional
+  comment, with errors on the fields and any other refusal in a
+  `SheetErrorNote`. It hands the saved review back to the page that opened
+  it. A review from a delivered order sends `order_id` (a verified purchase);
+  one from the product page and any edit send none. `OrderPage` offers
+  "Rate" on each line that has a product id once the order is `delivered`
+  (`OrderStatus.isReviewable`). The button becomes "Edit review" for a
+  review saved during the same visit, because order lines carry no review
+  flag.
+- **Removed, no backend**: coupons, rating a whole order, following a family,
   search suggestions, device registration, the exhibition banner and its QR.
 - **Explore** has no endpoint: tabs are New (`sort=newest`), Featured
   (`featured=1`) and Lowest price (`sort=price_asc`) over `GET /products`.
@@ -268,6 +303,9 @@ All screens run on the live API. Known gaps and deliberate departures:
 
 Sources, in order of trust: live responses from
 `https://betouti.alqudiry-solutions.com/api/v1/` (probed 2026-09-27),
+Betouti's own OpenAPI spec at `https://betouti.alqudiry-solutions.com/docs/api.json`
+(public, generated from the Laravel routes and form requests: exact request
+bodies and required fields, but untyped success answers),
 `Betouti_Mobile_API_Integration_Guide_v1.0.pdf` (the backend team's guide),
 and `../cloack` — the same Laravel engine at `cloak.alqudiry-solutions.com`,
 whose models and `test/live_*_probe.dart` document the authenticated shapes.
@@ -337,7 +375,8 @@ above sees `Either<Failure, T>` (dartz).
 Features: `catalog` (shared product/family/category/totals entities and
 models, favourites/wishlist, `ProductCard`), `auth`, `location`, `home`,
 `explore`, `search`, `product`, `family`, `cart`, `checkout`, `orders`,
-`notifications`, `profile`, `shell` (the tab bar), `splash` (presentation
+`notifications`, `profile`, `reviews` (writing a review; the shared
+sheet), `shell` (the tab bar), `splash` (presentation
 only; see "Splash"). A feature may import
 another feature's `domain` entities and `catalog`; it never imports another
 feature's `data` from `presentation`. `ProductCard` reads `CartCubit`
@@ -407,8 +446,8 @@ in it. The shell hides the tab bar on product pages, the one screen the
 design draws without it. `/welcome`, `/auth` and `/otp` are
 root routes for guests; `/location` is a root route for members.
 
-The guard reads `SessionNotifier`. **Everything except `/welcome`, `/auth`
-and `/otp` needs an account**: a guest is sent to `/auth?from=<location>` and,
+The guard reads `SessionNotifier`. **Everything except `/welcome`, `/auth`,
+`/otp` and the browse routes needs an account**: a guest is sent to `/auth?from=<location>` and,
 once verified, back to `from`. A member whose location is known to be unset
 is sent to `/location?from=<location>` (`redirectForLocation`); while it is
 still loading nobody is redirected. `test/route_guard_test.dart` asserts

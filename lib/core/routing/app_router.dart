@@ -38,10 +38,41 @@ const Set<String> guestOnlyRoutes = {
   AppRoutes.otp,
 };
 
-final Set<String> publicRoutes = {...guestOnlyRoutes};
+const List<String> browseTabs = [
+  AppRoutes.home,
+  AppRoutes.explore,
+  AppRoutes.search,
+];
 
-bool isProtectedRoute(String location) =>
-    !guestOnlyRoutes.contains(Uri.parse(location).path);
+final Set<String> browseRoutes = {
+  for (final tab in browseTabs) ...[
+    tab,
+    '$tab/${AppRoutes.productSegment}/:id',
+    '$tab/${AppRoutes.familySegment}',
+    '$tab/${AppRoutes.familySegment}/:id',
+  ],
+};
+
+final Set<String> publicRoutes = {...guestOnlyRoutes, ...browseRoutes};
+
+bool _isBrowsePath(String path) {
+  final segments = Uri.parse(path).pathSegments;
+  if (segments.isEmpty || !browseTabs.contains('/${segments.first}')) {
+    return false;
+  }
+  return switch (segments.skip(1).toList()) {
+    [] => true,
+    [AppRoutes.productSegment, _] => true,
+    [AppRoutes.familySegment] => true,
+    [AppRoutes.familySegment, _] => true,
+    _ => false,
+  };
+}
+
+bool isProtectedRoute(String location) {
+  final path = Uri.parse(location).path;
+  return !guestOnlyRoutes.contains(path) && !_isBrowsePath(path);
+}
 
 String? redirectForGuest({
   required String location,

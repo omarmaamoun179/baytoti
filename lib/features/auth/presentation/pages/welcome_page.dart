@@ -107,15 +107,15 @@ class WelcomePage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // AppButton(
-          //   label: 'welcome_browse'.tr(),
-          //   style: AppButtonStyle.light,
-          //   pill: true,
-          //   height: 54,
-          //   fontSize: 14.5,
-          //   onPressed: () => context.go(AppRoutes.home),
-          // ),
-          // const SizedBox(height: 11),
+          AppButton(
+            label: 'welcome_browse'.tr(),
+            style: AppButtonStyle.light,
+            pill: true,
+            height: 54,
+            fontSize: 14.5,
+            onPressed: () => context.go(AppRoutes.home),
+          ),
+          const SizedBox(height: 11),
           AppButton(
             label: 'welcome_login'.tr(),
             style: AppButtonStyle.ghost,

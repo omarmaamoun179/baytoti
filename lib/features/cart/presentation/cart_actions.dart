@@ -17,10 +17,7 @@ Future<void> addToCart(
   int quantity = 1,
   bool openCart = false,
 }) async {
-  if (!context.read<AuthCubit>().state.isSignedIn) {
-    context.openAuth();
-    return;
-  }
+  if (!requireSignIn(context)) return;
 
   final failure = await context.read<CartCubit>().add(productId, quantity);
   if (!context.mounted) return;
@@ -69,6 +66,7 @@ Future<void> _reportFailure(
 
 bool requireSignIn(BuildContext context) {
   if (context.read<AuthCubit>().state.isSignedIn) return true;
+  showAppToast(context, 'sign_in_required'.tr());
   context.openAuth();
   return false;
 }

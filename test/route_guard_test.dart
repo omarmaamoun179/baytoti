@@ -145,10 +145,32 @@ void main() {
     expect(isProtectedRoute('/welcome?next=/cart/orders/1'), isFalse);
   });
 
-  test('browsing needs an account: every tab is protected', () {
-    for (final tab in AppRoutes.tabs) {
-      expect(isProtectedRoute(tab), isTrue, reason: tab);
-      expect(Uri.parse(_guest(tab)!).path, AppRoutes.auth, reason: tab);
+  test('a guest browses home, explore, search, products and stores', () {
+    for (final tab in browseTabs) {
+      for (final path in [
+        tab,
+        '$tab/${AppRoutes.productSegment}/x1',
+        '$tab/${AppRoutes.familySegment}',
+        '$tab/${AppRoutes.familySegment}/x1',
+      ]) {
+        expect(isProtectedRoute(path), isFalse, reason: path);
+        expect(_guest(path), isNull, reason: path);
+      }
+    }
+  });
+
+  test('cart, profile and account screens still need an account', () {
+    for (final path in [
+      AppRoutes.cart,
+      AppRoutes.profile,
+      '${AppRoutes.cart}/${AppRoutes.checkoutSegment}',
+      '${AppRoutes.cart}/${AppRoutes.productSegment}/x1',
+      '${AppRoutes.profile}/${AppRoutes.favouritesSegment}',
+      '${AppRoutes.home}/${AppRoutes.orderSegment}/1',
+      '${AppRoutes.home}/${AppRoutes.notificationsSegment}',
+    ]) {
+      expect(isProtectedRoute(path), isTrue, reason: path);
+      expect(Uri.parse(_guest(path)!).path, AppRoutes.auth, reason: path);
     }
   });
 

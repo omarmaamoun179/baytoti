@@ -18,6 +18,11 @@ import 'package:baytoti/features/orders/presentation/pages/order_page.dart';
 import 'package:baytoti/features/orders/presentation/widgets/order_header_card.dart';
 import 'package:baytoti/features/orders/presentation/widgets/order_items_section.dart';
 import 'package:baytoti/features/orders/presentation/widgets/order_timeline.dart';
+import 'package:baytoti/features/reviews/data/datasources/reviews_data_source.dart';
+import 'package:baytoti/features/reviews/data/repositories/reviews_repository_impl.dart';
+import 'package:baytoti/features/reviews/domain/usecases/reviews_usecases.dart';
+import 'package:baytoti/features/reviews/presentation/cubit/review_form_cubit.dart';
+import 'package:baytoti/features/reviews/presentation/widgets/star_rating_picker.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -667,6 +672,78 @@ void main() {
       expect(find.text('Cancel order'), findsNothing);
       expect(find.text('Cancelled'), findsOneWidget);
       expect(tester.takeException(), isNull);
+    });
+
+    Map<String, dynamic> delivered() {
+      final body = Map<String, dynamic>.from(
+        apiSample('orders/order_detail.cloak_shape.json')! as Map,
+      );
+      body['data'] = {...(body['data'] as Map), 'status': 'delivered'};
+      return body;
+    }
+
+    testWidgets('a delivered order offers to rate each item', (tester) async {
+      network.reply('GET', ApiEndPoint.order('12'), body: delivered());
+      await pumpOrderPage(tester, '12');
+
+      expect(find.text('Rate'), findsNWidgets(2));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('an order still on its way offers no review', (tester) async {
+      await pumpOrderPage(tester, '12');
+
+      expect(find.text('Rate'), findsNothing);
+    });
+
+    testWidgets('rating an item sends its order, then offers to edit it',
+        (tester) async {
+      network
+        ..reply('GET', ApiEndPoint.order('12'), body: delivered())
+        ..reply('POST', ApiEndPoint.reviews, body: {
+          'success': true,
+          'data': {
+            'id': 31,
+            'rating': 4,
+            'comment': null,
+            'user': {'id': 18, 'name': 'Noura'},
+            'product_id': 26,
+          },
+        });
+      GetIt.instance.registerFactory(
+        () => ReviewFormCubit(SubmitReviewUseCase(
+          ReviewsRepositoryImpl(ReviewsRemoteDataSource(network)),
+        )),
+      );
+      await pumpOrderPage(tester, '12');
+
+      await tester.ensureVisible(find.text('Rate').first);
+      await tester.tap(find.text('Rate').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Rate this product'), findsOneWidget);
+      expect(find.text('مجبوس دجاج'), findsNWidgets(2));
+
+      await tester.tap(find
+          .descendant(
+            of: find.byType(StarRatingPicker),
+            matching: find.byType(InkResponse),
+          )
+          .at(3));
+      await tester.tap(find.text('Submit review'));
+      await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 50)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(network.last('POST').data, {
+        'product_id': 26,
+        'order_id': 12,
+        'rating': 4,
+      });
+      expect(find.text('Rate this product'), findsNothing);
+      expect(find.text('Edit review'), findsOneWidget);
+      expect(find.text('Rate'), findsOneWidget);
+      expect(find.text('Thanks, your review was saved'), findsOneWidget);
     });
 
     testWidgets('an unknown order says so and offers a retry',
