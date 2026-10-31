@@ -9,6 +9,7 @@ class ProfileRow extends StatelessWidget {
   final String? meta;
   final VoidCallback onTap;
   final bool isSignOut;
+  final bool isDanger;
 
   const ProfileRow({
     super.key,
@@ -16,6 +17,7 @@ class ProfileRow extends StatelessWidget {
     this.meta,
     required this.onTap,
     this.isSignOut = false,
+    this.isDanger = false,
   });
 
   @override
@@ -34,7 +36,11 @@ class ProfileRow extends StatelessWidget {
               child: Text(
                 label,
                 style: AppStrings.w600(13, 1.2).c(
-                  isSignOut ? p.accent700 : p.text,
+                  isDanger
+                      ? p.danger
+                      : isSignOut
+                      ? p.accent700
+                      : p.text,
                 ),
               ),
             ),

@@ -12,6 +12,7 @@ import 'package:baytoti/features/auth/data/repositories/auth_repository_impl.dar
 import 'package:baytoti/features/auth/domain/entities/customer.dart';
 import 'package:baytoti/features/auth/domain/usecases/auth_usecases.dart';
 import 'package:baytoti/features/auth/presentation/cubit/auth_cubit.dart';
+import 'package:baytoti/features/auth/presentation/cubit/auth_state.dart';
 import 'package:baytoti/features/cart/data/datasources/cart_data_source.dart';
 import 'package:baytoti/features/cart/data/repositories/cart_repository_impl.dart';
 import 'package:baytoti/features/cart/domain/usecases/cart_usecases.dart';
@@ -61,7 +62,8 @@ void main() {
     Customer? signedIn,
   }) async {
     final network = FakeNetwork()
-      ..replySample('GET', ApiEndPoint.me, 'profile/me.cloak_shape.json');
+      ..replySample('GET', ApiEndPoint.me, 'profile/me.cloak_shape.json')
+      ..reply('POST', ApiEndPoint.logout, body: {'success': true, 'data': null});
     GetIt.instance.registerFactory(
       () => ProfileCubit(GetProfileUseCase(
         ProfileRepositoryImpl(ProfileRemoteDataSource(network)),
@@ -107,6 +109,10 @@ void main() {
                 builder: (_, state) => Text('at ${state.uri.path}'),
               ),
           ],
+        ),
+        GoRoute(
+          path: AppRoutes.welcome,
+          builder: (_, state) => Scaffold(body: Text('at ${state.uri.path}')),
         ),
         GoRoute(
           path: AppRoutes.location,
@@ -197,5 +203,37 @@ void main() {
 
     expect(find.text('Noura Alanzi'), findsOneWidget);
     expect(find.text('Noura Al-Anzi'), findsNothing);
+  });
+
+  testWidgets('deleting the account asks first, then signs out with a toast',
+      (tester) async {
+    const signedIn = Customer(
+      id: '18',
+      fullName: 'Noura Al-Anzi',
+      phone: '96551502244',
+    );
+    final (_, authCubit) = await pumpProfile(tester, signedIn: signedIn);
+    final row = find.text('Delete account');
+
+    await tester.ensureVisible(row);
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete your account?'), findsOneWidget);
+
+    await tester.tap(find.text('Go back'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Delete your account?'), findsNothing);
+    expect(authCubit.state.status, AuthStatus.signedIn);
+
+    await tester.tap(row);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+
+    expect(authCubit.state.status, AuthStatus.guest);
+    expect(find.text('at /welcome'), findsOneWidget);
+    expect(find.text('Your account was deleted'), findsOneWidget);
   });
 }

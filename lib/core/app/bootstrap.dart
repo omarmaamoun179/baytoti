@@ -60,6 +60,7 @@ Future<void> bootstrap({Future<void> Function()? onReady}) async {
           enabled: false,
           builder: (context) => RequestsInspector(
             enabled: kDebugMode,
+            hideInspectorBanner: true,
             showInspectorOn: ShowInspectorOn.Both,
             navigatorKey: rootNavigatorKey,
             child: LocalizationService.wrap(const App()),

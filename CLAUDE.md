@@ -53,9 +53,42 @@ user's choice, following the sibling `com.alqudirysolutions.cloak`; a vendor
 app would be `…baytouti.vendor`. They are permanent once published. They are
 set in `android/app/build.gradle.kts` (`namespace`, `applicationId`), in
 `MainActivity.kt`'s package and folder, and in `PRODUCT_BUNDLE_IDENTIFIER` in
-`ios/Runner.xcodeproj` (team `3L2ESXVMCL`). Android release builds are still
-signed with the debug key; Google Play needs an upload keystore wired into
-`buildTypes.release`.
+`ios/Runner.xcodeproj` (team `3L2ESXVMCL`).
+
+The Android launcher name is `بيتوتي` (`android:label`); iOS still shows
+`Baytouti` (`CFBundleDisplayName`).
+
+**Release signing.** `android/app/build.gradle.kts` reads
+`android/key.properties` (`storeFile`, `storePassword`, `keyAlias`,
+`keyPassword`). Both it and every `*.jks` are git-ignored. The upload
+keystore (alias `upload`, PKCS12, RSA 4096) was created on 2026-10-31 and
+lives outside the repo at `~/keystores/baytouti/upload-keystore.jks`, so
+`git clean -x` can't delete it. Without `key.properties` the release build
+falls back to the debug key, so a fresh clone still runs `--release`; Play
+refuses a debug-signed bundle, so that can't ship by mistake. Play App
+Signing holds the real app-signing key, and this one only uploads. A lost
+upload key can be reset from the Play Console, but losing it still blocks
+updates until the reset.
+
+`flutter build appbundle --release` → `build/app/outputs/bundle/release/
+app-release.aab`. The bundle was checked on 2026-10-31: minSdk 24, targetSdk 36,
+every `.so` LOAD segment aligned to at least 16 KB, and R8 mapping and
+native debug symbols included. The merged permissions are only `INTERNET`,
+`ACCESS_NETWORK_STATE` and AndroidX's signature-level
+`DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`, so Play needs no permission
+declaration. The photo picker requests none (see "Photos").
+`android:allowBackup="false"` follows `flutter_secure_storage`: a restored
+backup carries ciphertext whose Keystore key didn't come with it
+(`InvalidKeyException: Failed to unwrap key`).
+
+**Before release, still open:** the backend has no account-deletion route
+(none in the OpenAPI spec, checked 2026-10-31), but Play requires an
+in-app path and a web link for apps with sign-up. The profile's last row,
+"Delete account" (`showDeleteAccountDialog`, an `AppButtonStyle.danger`
+confirm), is a stand-in the user asked for. It sends no request: it toasts
+`profile_account_deleted`, signs out as "Sign out" does (including
+`auth/logout`) and goes to Welcome. The account still exists on the server. The OTP demo-code note
+(see "Current state") is still shown.
 
 ### Build-time switches
 

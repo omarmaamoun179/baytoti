@@ -14,6 +14,7 @@ import '../../../../core/widgets/confirm_sheet.dart';
 import '../../../auth/domain/entities/customer.dart';
 import '../cubit/profile_cubit.dart';
 import '../cubit/profile_state.dart';
+import '../widgets/delete_account_dialog.dart';
 import '../widgets/profile_identity.dart';
 import '../widgets/profile_row.dart';
 
@@ -123,6 +124,11 @@ class _ProfileView extends StatelessWidget {
           isSignOut: true,
           onTap: () => _signOut(context),
         ),
+        ProfileRow(
+          label: 'profile_delete_account'.tr(),
+          isDanger: true,
+          onTap: () => _deleteAccount(context),
+        ),
       ];
 
   Future<void> _switchLanguage(BuildContext context) async {
@@ -144,6 +150,17 @@ class _ProfileView extends StatelessWidget {
 
     final auth = context.read<AuthCubit>();
     final router = GoRouter.of(context);
+    await auth.signOut();
+    router.go(AppRoutes.welcome);
+  }
+
+  Future<void> _deleteAccount(BuildContext context) async {
+    final confirmed = await showDeleteAccountDialog(context);
+    if (!confirmed || !context.mounted) return;
+
+    final auth = context.read<AuthCubit>();
+    final router = GoRouter.of(context);
+    showAppToast(context, 'profile_account_deleted'.tr());
     await auth.signOut();
     router.go(AppRoutes.welcome);
   }

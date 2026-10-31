@@ -4,7 +4,7 @@ import '../theme/app_palette.dart';
 import '../utils/app_strings.dart';
 import 'app_icon.dart';
 
-enum AppButtonStyle { primary, outline, quiet, light, ghost }
+enum AppButtonStyle { primary, outline, quiet, light, ghost, danger }
 
 class AppButton extends StatelessWidget {
   final String label;
@@ -56,6 +56,11 @@ class AppButton extends StatelessWidget {
           p.surface.withValues(alpha: .12),
           p.surface,
           Border.all(color: p.surface, width: 1.5),
+        ),
+      AppButtonStyle.danger => (
+          enabled || isLoading ? p.danger : p.neutral500,
+          p.surface,
+          null,
         ),
     };
 
